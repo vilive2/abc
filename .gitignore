@@ -64,3 +64,9 @@ tags
 /cmake
 /cscope
 abc.history
+
+*.aig
+*.aag
+*.png
+*.dot
+*.log
