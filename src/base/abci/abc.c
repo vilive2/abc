@@ -55,6 +55,7 @@
 #include "base/cmd/cmd.h"
 #include "proof/abs/abs.h"
 #include "sat/bmc/bmc.h"
+#include "sat/purse/purse.h"
 #include "proof/ssc/ssc.h"
 #include "opt/sfm/sfm.h"
 #include "opt/sbd/sbd.h"
@@ -30183,42 +30184,17 @@ usage:
 ***********************************************************************/
 int Abc_CommandPurse( Abc_Frame_t * pAbc, int argc, char ** argv )
 {
-    // extern int Abc_NtkDarBmc3( Abc_Ntk_t * pNtk, Saig_ParBmc_t * pPars, int fOrDecomp );
-    Saig_ParBmc_t Pars, * pPars = &Pars;
-    // Abc_Ntk_t * pNtkRes, * pNtk = Abc_FrameReadNtk(pAbc);
-    // Vec_Ptr_t * vSeqModelVec = NULL;
-    // Vec_Int_t * vStatuses = NULL;
+    extern void PurseMultiPropertyVerification( Abc_Ntk_t * pNtk, PursePar_t * pPars );
+    PursePar_t Pars, * pPars = &Pars;
+    Abc_Ntk_t * pNtk = Abc_FrameReadNtk(pAbc);
     char * pLogFileName = NULL;
-    // int fOrDecomp = 0;
     int c;
-    // Saig_ParBmcSetDefaultParams( pPars );
-    // Extra_UtilGetoptReset();
+    ParPurseSetDefaultParams( pPars );
+    Extra_UtilGetoptReset();
     while ( ( c = Extra_UtilGetopt( argc, argv, "SFTHGCDJIPQRLWaxdursgvzh" ) ) != EOF )
     {
         switch ( c )
         {
-    //     case 'S':
-    //         if ( globalUtilOptind >= argc )
-    //         {
-    //             Abc_Print( -1, "Command line switch \"-S\" should be followed by an integer.\n" );
-    //             goto usage;
-    //         }
-    //         pPars->nStart = atoi(argv[globalUtilOptind]);
-    //         globalUtilOptind++;
-    //         if ( pPars->nStart < 0 )
-    //             goto usage;
-    //         break;
-        case 'F':
-            if ( globalUtilOptind >= argc )
-            {
-                Abc_Print( -1, "Command line switch \"-F\" should be followed by an integer.\n" );
-                goto usage;
-            }
-            pPars->nFramesMax = atoi(argv[globalUtilOptind]);
-            globalUtilOptind++;
-            if ( pPars->nFramesMax < 0 )
-                goto usage;
-            break;
         case 'T':
             if ( globalUtilOptind >= argc )
             {
@@ -30230,105 +30206,28 @@ int Abc_CommandPurse( Abc_Frame_t * pAbc, int argc, char ** argv )
             if ( pPars->nTimeOut < 0 )
                 goto usage;
             break;
-    //     case 'H':
-    //         if ( globalUtilOptind >= argc )
-    //         {
-    //             Abc_Print( -1, "Command line switch \"-H\" should be followed by an integer.\n" );
-    //             goto usage;
-    //         }
-    //         pPars->nTimeOutOne = atoi(argv[globalUtilOptind]);
-    //         globalUtilOptind++;
-    //         if ( pPars->nTimeOutOne < 0 )
-    //             goto usage;
-    //         break;
-    //     case 'G':
-    //         if ( globalUtilOptind >= argc )
-    //         {
-    //             Abc_Print( -1, "Command line switch \"-G\" should be followed by an integer.\n" );
-    //             goto usage;
-    //         }
-    //         pPars->nTimeOutGap = atoi(argv[globalUtilOptind]);
-    //         globalUtilOptind++;
-    //         if ( pPars->nTimeOutGap < 0 )
-    //             goto usage;
-    //         break;
-    //     case 'C':
-    //         if ( globalUtilOptind >= argc )
-    //         {
-    //             Abc_Print( -1, "Command line switch \"-C\" should be followed by an integer.\n" );
-    //             goto usage;
-    //         }
-    //         pPars->nConfLimit = atoi(argv[globalUtilOptind]);
-    //         globalUtilOptind++;
-    //         if ( pPars->nConfLimit < 0 )
-    //             goto usage;
-    //         break;
-    //     case 'D':
-    //         if ( globalUtilOptind >= argc )
-    //         {
-    //             Abc_Print( -1, "Command line switch \"-D\" should be followed by an integer.\n" );
-    //             goto usage;
-    //         }
-    //         pPars->nConfLimitJump = atoi(argv[globalUtilOptind]);
-    //         globalUtilOptind++;
-    //         if ( pPars->nConfLimitJump < 0 )
-    //             goto usage;
-    //         break;
-    //     case 'J':
-    //         if ( globalUtilOptind >= argc )
-    //         {
-    //             Abc_Print( -1, "Command line switch \"-J\" should be followed by an integer.\n" );
-    //             goto usage;
-    //         }
-    //         pPars->nFramesJump = atoi(argv[globalUtilOptind]);
-    //         globalUtilOptind++;
-    //         if ( pPars->nFramesJump < 0 )
-    //             goto usage;
-    //         break;
-    //     case 'I':
-    //         if ( globalUtilOptind >= argc )
-    //         {
-    //             Abc_Print( -1, "Command line switch \"-I\" should be followed by an integer.\n" );
-    //             goto usage;
-    //         }
-    //         pPars->nPisAbstract = atoi(argv[globalUtilOptind]);
-    //         globalUtilOptind++;
-    //         if ( pPars->nPisAbstract < 0 )
-    //             goto usage;
-    //         break;
-    //     case 'P':
-    //         if ( globalUtilOptind >= argc )
-    //         {
-    //             Abc_Print( -1, "Command line switch \"-P\" should be followed by an integer.\n" );
-    //             goto usage;
-    //         }
-    //         pPars->nLearnedStart = atoi(argv[globalUtilOptind]);
-    //         globalUtilOptind++;
-    //         if ( pPars->nLearnedStart < 0 )
-    //             goto usage;
-    //         break;
-    //     case 'Q':
-    //         if ( globalUtilOptind >= argc )
-    //         {
-    //             Abc_Print( -1, "Command line switch \"-Q\" should be followed by an integer.\n" );
-    //             goto usage;
-    //         }
-    //         pPars->nLearnedDelta = atoi(argv[globalUtilOptind]);
-    //         globalUtilOptind++;
-    //         if ( pPars->nLearnedDelta < 0 )
-    //             goto usage;
-    //         break;
-    //     case 'R':
-    //         if ( globalUtilOptind >= argc )
-    //         {
-    //             Abc_Print( -1, "Command line switch \"-R\" should be followed by an integer.\n" );
-    //             goto usage;
-    //         }
-    //         pPars->nLearnedPerce = atoi(argv[globalUtilOptind]);
-    //         globalUtilOptind++;
-    //         if ( pPars->nLearnedPerce < 0 )
-    //             goto usage;
-    //         break;
+        case 'C':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-C\" should be followed by an integer.\n" );
+                goto usage;
+            }
+            pPars->nConfLimit = atoi(argv[globalUtilOptind]);
+            globalUtilOptind++;
+            if ( pPars->nConfLimit < 0 )
+                goto usage;
+            break;
+        case 'P':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-P\" should be followed by an integer.\n" );
+                goto usage;
+            }
+            pPars->nPropLimit = atoi(argv[globalUtilOptind]);
+            globalUtilOptind++;
+            if ( pPars->nPropLimit < 0 )
+                goto usage;
+            break;
         case 'L':
             if ( globalUtilOptind >= argc )
             {
@@ -30338,133 +30237,52 @@ int Abc_CommandPurse( Abc_Frame_t * pAbc, int argc, char ** argv )
             pLogFileName = argv[globalUtilOptind];
             globalUtilOptind++;
             break;
-    //     case 'W':
-    //         if ( globalUtilOptind >= argc )
-    //         {
-    //             Abc_Print( -1, "Command line switch \"-W\" should be followed by a file name.\n" );
-    //             goto usage;
-    //         }
-    //         pPars->pLogFileName = argv[globalUtilOptind];
-    //         globalUtilOptind++;
-    //         break;
-        case 'a':
-            pPars->fSolveAll ^= 1;
-            break;
-        case 'x':
-            pPars->fStoreCex ^= 1;
-            break;
-    //     case 'd':
-    //         pPars->fDropSatOuts ^= 1;
-    //         break;
-    //     case 'u':
-    //         fOrDecomp ^= 1;
-    //         break;
-    //     case 'r':
-    //         pPars->fNoRestarts ^= 1;
-    //         break;
-        case 's':
-            pPars->fUseSatoko ^= 1;
-            break;
-        case 'g':
-            pPars->fUseGlucose ^= 1;
-            break;
         case 'v':
             pPars->fVerbose ^= 1;
             break;
-    //     case 'z':
-    //         pPars->fNotVerbose ^= 1;
-    //         break;
         case 'h':
             goto usage;
         default:
             goto usage;
         }
     }
-    // if ( pNtk == NULL )
-    // {
-    //     Abc_Print( -1, "Empty network.\n" );
-    //     return 1;
-    // }
-    // if ( !Abc_NtkIsStrash(pNtk) )
-    // {
-    //     Abc_Print( -1, "Currently only works for structurally hashed circuits.\n" );
-    //     return 0;
-    // }
-    // if ( Abc_NtkLatchNum(pNtk) == 0 )
-    // {
-    //     Abc_Print( -1, "Does not work for combinational networks.\n" );
-    //     return 0;
-    // }
-    // if ( Abc_NtkConstrNum(pNtk) > 0 )
-    // {
-    //     Abc_Print( -1, "Constraints have to be folded (use \"fold\").\n" );
-    //     return 0;
-    // }
-    // if ( pAbc->fBatchMode && (pAbc->Status == 0 || pAbc->Status == 1) ) 
-    // { 
-    //     Abc_Print( 1, "The miters is already solved; skipping the command.\n" ); 
-    //     return 0;
-    // }
-    // pPars->fUseBridge = pAbc->fBridgeMode;
-    // pAbc->Status = Abc_NtkDarBmc3( pNtk, pPars, fOrDecomp );
-    // pAbc->nFrames = pNtk->vSeqModelVec ? -1 : pPars->iFrame;
-    // if ( pLogFileName )
-    //     Abc_NtkWriteLogFile( pLogFileName, pAbc->pCex, pAbc->Status, pAbc->nFrames, "bmc3" );
-    // vSeqModelVec = pNtk->vSeqModelVec;  pNtk->vSeqModelVec = NULL;
-    // if ( pPars->fSolveAll && pPars->fDropSatOuts )
-    // {
-    //     if ( vSeqModelVec == NULL )
-    //         Abc_Print( 1,"The array of counter-examples is not available.\n" );
-    //     else if ( Vec_PtrSize(vSeqModelVec) != Abc_NtkPoNum(pNtk) )
-    //         Abc_Print( 1,"The array size does not match the number of outputs.\n" );
-    //     else
-    //     {
-    //         extern void Abc_NtkDropSatOutputs( Abc_Ntk_t * pNtk, Vec_Ptr_t * vCexes, int fVerbose );
-    //         Abc_NtkDropSatOutputs( pNtk, vSeqModelVec, pPars->fVerbose );
-    //         pNtkRes = Abc_NtkDarLatchSweep( pNtk, 1, 1, 1, 0, -1, -1, 0, 0 );
-    //         if ( pNtkRes == NULL )
-    //         {
-    //             Abc_Print( -1, "Removing SAT outputs has failed.\n" );
-    //             return 1;
-    //         }
-    //         Abc_FrameReplaceCurrentNetwork( pAbc, pNtkRes );
-    //     }
-    // }
-    // vStatuses = Abc_FrameDeriveStatusArray( vSeqModelVec );
-    // Abc_FrameReplacePoStatuses( pAbc, &vStatuses );
-    // if ( vSeqModelVec )
-    //     Abc_FrameReplaceCexVec( pAbc, &vSeqModelVec );
-    // else
-    //     Abc_FrameReplaceCex( pAbc, &pNtk->pSeqModel );
+    if ( pNtk == NULL )
+    {
+        Abc_Print( -1, "Empty network.\n" );
+        return 1;
+    }
+    if ( !Abc_NtkIsStrash(pNtk) )
+    {
+        Abc_Print( -1, "Currently only works for structurally hashed circuits.\n" );
+        return 0;
+    }
+    if ( Abc_NtkLatchNum(pNtk) == 0 )
+    {
+        Abc_Print( -1, "Does not work for combinational networks.\n" );
+        return 0;
+    }
+    if ( Abc_NtkConstrNum(pNtk) > 0 )
+    {
+        Abc_Print( -1, "Constraints have to be folded (use \"fold\").\n" );
+        return 0;
+    }
+    if ( pAbc->fBatchMode && (pAbc->Status == 0 || pAbc->Status == 1) ) 
+    { 
+        Abc_Print( 1, "The miters is already solved; skipping the command.\n" ); 
+        return 0;
+    }
+    
+    PurseMultiPropertyVerification(pNtk, pPars);
     return 0;
 
 usage:
-    Abc_Print( -2, "usage: purse [-FT num] [-L file] [-axsgvh]\n" );
-    // Abc_Print( -2, "usage: purse [-SFTHGCDJIPQR num] [-LW file] [-axdursgvzh]\n" );
+    Abc_Print( -2, "usage: purse [-TCPL num] [-L file] [-axsgvh]\n" );
     Abc_Print( -2, "\t         performs bounded model checking with dynamic unrolling\n" );
-    // Abc_Print( -2, "\t-S num : the starting time frame [default = %d]\n", pPars->nStart );
-    Abc_Print( -2, "\t-F num : the max number of time frames (0 = unused) [default = %d]\n",      pPars->nFramesMax );
     Abc_Print( -2, "\t-T num : runtime limit, in seconds [default = %d]\n",                       pPars->nTimeOut );
-    // Abc_Print( -2, "\t-H num : runtime limit per output, in milliseconds (with \"-a\") [default = %d]\n",    pPars->nTimeOutOne );
-    // Abc_Print( -2, "\t-G num : runtime gap since the last CEX, in seconds [default = %d]\n",      pPars->nTimeOutGap );
-    // Abc_Print( -2, "\t-C num : max conflicts at an output [default = %d]\n",                      pPars->nConfLimit );
-    // Abc_Print( -2, "\t-D num : max conflicts after jumping (0 = infinity) [default = %d]\n",      pPars->nConfLimitJump );
-    // Abc_Print( -2, "\t-J num : the number of timeframes to jump (0 = not used) [default = %d]\n", pPars->nFramesJump );
-    // Abc_Print( -2, "\t-I num : the number of PIs to abstract [default = %d]\n",                   pPars->nPisAbstract );
-    // Abc_Print( -2, "\t-P num : the max number of learned clauses to keep (0=unused) [default = %d]\n", pPars->nLearnedStart );
-    // Abc_Print( -2, "\t-Q num : delta value for learned clause removal [default = %d]\n",          pPars->nLearnedDelta );
-    // Abc_Print( -2, "\t-R num : percentage to keep for learned clause removal [default = %d]\n",   pPars->nLearnedPerce );
+    Abc_Print( -2, "\t-C num : conflict limit [default = %d]\n",                       pPars->nConfLimit );
+    Abc_Print( -2, "\t-P num : propagation limit [default = %d]\n",                       pPars->nPropLimit );
     Abc_Print( -2, "\t-L file: the log file name [default = %s]\n",                               pLogFileName ? pLogFileName : "no logging" );
-    // Abc_Print( -2, "\t-W file: the log file name with per-output details [default = %s]\n",       pPars->pLogFileName ? pPars->pLogFileName : "no logging" );
-    Abc_Print( -2, "\t-a     : solve all outputs (do not stop when one is SAT) [default = %s]\n", pPars->fSolveAll? "yes": "no" );
-    Abc_Print( -2, "\t-x     : toggle storing CEXes when solving all outputs [default = %s]\n",   pPars->fStoreCex? "yes": "no" );
-    // Abc_Print( -2, "\t-d     : toggle dropping (replacing by 0) SAT outputs [default = %s]\n",    pPars->fDropSatOuts? "yes": "no" );
-    // Abc_Print( -2, "\t-u     : toggle performing structural OR-decomposition [default = %s]\n",   fOrDecomp? "yes": "not" );
-    // Abc_Print( -2, "\t-r     : toggle disabling periodic restarts [default = %s]\n",              pPars->fNoRestarts? "yes": "no" );
-    Abc_Print( -2, "\t-s     : toggle using Satoko by Bruno Schmitt [default = %s]\n", pPars->fUseSatoko? "yes": "no" );
-    Abc_Print( -2, "\t-g     : toggle using Glucose 3.0 by Gilles Audemard and Laurent Simon [default = %s]\n",pPars->fUseGlucose? "yes": "no" );
     Abc_Print( -2, "\t-v     : toggle verbose output [default = %s]\n",                           pPars->fVerbose? "yes": "no" );
-    // Abc_Print( -2, "\t-z     : toggle suppressing report about solved outputs [default = %s]\n",  pPars->fNotVerbose? "yes": "no" );
     Abc_Print( -2, "\t-h     : print the command usage\n");
     return 1;
 }

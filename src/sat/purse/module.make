@@ -1,0 +1,1 @@
+SRC += src/sat/purse/purse.c

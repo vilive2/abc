@@ -132,6 +132,7 @@ struct Abc_Frame_t_
     Vec_Int_t *     vAbcObjIds;    // object IDs
     int             Status;                // the status of verification problem (proved=1, disproved=0, undecided=-1)
     int             nFrames;               // the number of time frames completed by BMC
+    int             nSat;                  // the number of SAT solver calls
     Vec_Ptr_t *     vPlugInComBinPairs;    // pairs of command and its binary name
     Vec_Ptr_t *     vLTLProperties_global; // related to LTL
     Vec_Ptr_t *     vSignalNames;  // temporary storage for signal names

@@ -109,6 +109,7 @@ struct Saig_ParBmc_t_
     int         nStart;         // starting timeframe
     int         nFramesMax;     // maximum number of timeframes 
     int         nConfLimit;     // maximum number of conflicts at a node
+    int         nPropLimit;
     int         nConfLimitJump; // maximum number of conflicts after jumping
     int         nFramesJump;    // the number of tiemframes to jump
     int         nTimeOut;       // approximate timeout in seconds
@@ -132,6 +133,8 @@ struct Saig_ParBmc_t_
     char *      pLogFileName;   // log file name
     int         fSilent;        // completely silent
     int         iFrame;         // explored up to this frame
+    int         nFrame;
+    int         nSat;
     int         nFailOuts;      // the number of failed outputs
     int         nDropOuts;      // the number of dropped outputs
     abctime     timeLastSolved; // the time when the last output was solved

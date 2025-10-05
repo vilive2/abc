@@ -718,7 +718,7 @@ Vec_Int_t * Saig_ManBmcComputeMappingRefs( Aig_Man_t * p, Vec_Int_t * vMap )
   SeeAlso     []
 
 ***********************************************************************/
-Gia_ManBmc_t * Saig_Bmc3ManStart( Aig_Man_t * pAig, int nTimeOutOne, int nConfLimit, int fUseSatoko, int fUseGlucose )
+Gia_ManBmc_t * Saig_Bmc3ManStart( Aig_Man_t * pAig, int nTimeOutOne, int nConfLimit, int nPropLimit, int fUseSatoko, int fUseGlucose )
 {
     Gia_ManBmc_t * p;
     Aig_Obj_t * pObj;
@@ -752,6 +752,7 @@ Gia_ManBmc_t * Saig_Bmc3ManStart( Aig_Man_t * pAig, int nTimeOutOne, int nConfLi
         satoko_opts_t opts;
         satoko_default_opts(&opts);
         opts.conf_limit = nConfLimit;
+        opts.prop_limit = nPropLimit;
         p->pSat2 = satoko_create();  
         satoko_configure(p->pSat2, &opts);
         satoko_setnvars(p->pSat2, 1000);
@@ -1337,6 +1338,7 @@ void Saig_ParBmcSetDefaultParams( Saig_ParBmc_t * p )
     p->nStart         =     0;    // maximum number of timeframes 
     p->nFramesMax     =     0;    // maximum number of timeframes 
     p->nConfLimit     =     0;    // maximum number of conflicts at a node
+    p->nPropLimit     =     0;
     p->nConfLimitJump =     0;    // maximum number of conflicts after jumping
     p->nFramesJump    =     0;    // the number of tiemframes to jump
     p->nTimeOut       =     0;    // approximate timeout in seconds
@@ -1350,6 +1352,8 @@ void Saig_ParBmcSetDefaultParams( Saig_ParBmc_t * p )
     p->fVerbose       =     0;    // verbose 
     p->fNotVerbose    =     0;    // skip line-by-line print-out 
     p->iFrame         =    -1;    // explored up to this frame
+    p->nFrame         =     1;
+    p->nSat           =     0;
     p->nFailOuts      =     0;    // the number of failed outputs
     p->nDropOuts      =     0;    // the number of timed out outputs
     p->timeLastSolved =     0;    // time when the last one was solved
@@ -1440,6 +1444,7 @@ int Saig_ManCallSolver( Gia_ManBmc_t * p, int Lit )
         return satoko_solve_assumptions_limit( p->pSat2, &Lit, 1, p->pPars->nConfLimit );
     else if ( p->pSat3 )
     {
+        p->pPars->nSat++;
         bmcg_sat_solver_set_conflict_budget( p->pSat3, p->pPars->nConfLimit );
         return bmcg_sat_solver_solve( p->pSat3, &Lit, 1 );
     }
@@ -1480,7 +1485,7 @@ int Saig_ManBmcScalable( Aig_Man_t * pAig, Saig_ParBmc_t * pPars )
     nTimeToStopNG = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock(): 0;
     nTimeToStop   = Saig_ManBmcTimeToStop( pPars, nTimeToStopNG );
     // create BMC manager
-    p = Saig_Bmc3ManStart( pAig, pPars->nTimeOutOne, pPars->nConfLimit, pPars->fUseSatoko, pPars->fUseGlucose );
+    p = Saig_Bmc3ManStart( pAig, pPars->nTimeOutOne, pPars->nConfLimit, pPars->nPropLimit, pPars->fUseSatoko, pPars->fUseGlucose );
     p->pPars = pPars;
     if ( p->pSat )
     {
@@ -1549,6 +1554,7 @@ int Saig_ManBmcScalable( Aig_Man_t * pAig, Saig_ParBmc_t * pPars )
         // consider the next timeframe
         if ( (RetValue == -1 || pPars->fSolveAll) && pPars->nStart == 0 && !nJumpFrame )
             pPars->iFrame = f-1;
+        
         // map nodes of this section
         Vec_PtrPush( p->vId2Var, Vec_IntStartFull(p->nObjNums) );
         Vec_PtrPush( p->vTerInfo, (pInfo = ABC_CALLOC(unsigned, p->nWordNum)) );
@@ -1577,6 +1583,8 @@ int Saig_ManBmcScalable( Aig_Man_t * pAig, Saig_ParBmc_t * pPars )
         }
         if ( (pPars->nStart && f < pPars->nStart) || (nJumpFrame && f < nJumpFrame) )
             continue;
+        
+        pPars->nFrame++;
         // create CNF upfront
         if ( pPars->fSolveAll )
         {
