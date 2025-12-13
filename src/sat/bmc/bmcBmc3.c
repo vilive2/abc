@@ -760,7 +760,7 @@ Gia_ManBmc_t * Saig_Bmc3ManStart( Aig_Man_t * pAig, int nTimeOutOne, int nConfLi
     else if ( fUseGlucose )
     {
         //opts.conf_limit = nConfLimit;
-        p->pSat3 = bmcg_sat_solver_start();  
+        p->pSat3 = bmcg_sat_solver_start();
         for ( i = 0; i < 1000; i++ )
             bmcg_sat_solver_addvar( p->pSat3 );
     }
@@ -1352,8 +1352,6 @@ void Saig_ParBmcSetDefaultParams( Saig_ParBmc_t * p )
     p->fVerbose       =     0;    // verbose 
     p->fNotVerbose    =     0;    // skip line-by-line print-out 
     p->iFrame         =    -1;    // explored up to this frame
-    p->nFrame         =     1;
-    p->nSat           =     0;
     p->nFailOuts      =     0;    // the number of failed outputs
     p->nDropOuts      =     0;    // the number of timed out outputs
     p->timeLastSolved =     0;    // time when the last one was solved
@@ -1440,11 +1438,17 @@ int Saig_ManCallSolver( Gia_ManBmc_t * p, int Lit )
         return l_False;
     if ( Lit == 1 )
         return l_True;
-    if ( p->pSat2 )
-        return satoko_solve_assumptions_limit( p->pSat2, &Lit, 1, p->pPars->nConfLimit );
+    if ( p->pSat2 ){
+        int status = satoko_solve_assumptions_limit( p->pSat2, &Lit, 1, p->pPars->nConfLimit );
+        if (p->pPars->pData != NULL) {
+            p->pPars->pData->nSat++;
+            p->pPars->pData->nLearnt += satoko_learntnum(p->pSat2);
+        }
+        return status;
+    }
     else if ( p->pSat3 )
     {
-        p->pPars->nSat++;
+        // p->pPars->nSat++;
         bmcg_sat_solver_set_conflict_budget( p->pSat3, p->pPars->nConfLimit );
         return bmcg_sat_solver_solve( p->pSat3, &Lit, 1 );
     }
@@ -1584,7 +1588,8 @@ int Saig_ManBmcScalable( Aig_Man_t * pAig, Saig_ParBmc_t * pPars )
         if ( (pPars->nStart && f < pPars->nStart) || (nJumpFrame && f < nJumpFrame) )
             continue;
         
-        pPars->nFrame++;
+        if (pPars->pData != NULL)
+            pPars->pData->nFrame++;
         // create CNF upfront
         if ( pPars->fSolveAll )
         {
