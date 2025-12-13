@@ -242,6 +242,14 @@ void bmcg_sat_solver_set_conflict_budget(bmcg_sat_solver* s, int Limit)
         ((Gluco::SimpSolver*)s)->budgetOff();
 }
 
+void bmcg_sat_solver_set_propagation_budget(bmcg_sat_solver* s, int Limit)
+{
+    if ( Limit > 0 ) 
+        ((Gluco::SimpSolver*)s)->setPropBudget( (int64_t)Limit );
+    else 
+        ((Gluco::SimpSolver*)s)->budgetOff();
+}
+
 int bmcg_sat_solver_varnum(bmcg_sat_solver* s)
 {
     return ((Gluco::SimpSolver*)s)->nVars();
@@ -258,6 +266,20 @@ int bmcg_sat_solver_conflictnum(bmcg_sat_solver* s)
 {
     return ((Gluco::SimpSolver*)s)->conflicts;
 }
+
+int bmcg_sat_solver_propagationnum (bmcg_sat_solver* s) {
+    return ((Gluco::SimpSolver*)s)->propagations;
+}
+
+int bmcg_sat_solver_decisionnum (bmcg_sat_solver* s) {
+    return ((Gluco::SimpSolver*)s)->decisions;
+}
+
+int bmcg_sat_solver_restartnum (bmcg_sat_solver* s) {
+    return ((Gluco::SimpSolver*)s)->starts;
+}
+
+
 
 int bmcg_sat_solver_minimize_assumptions( bmcg_sat_solver * s, int * plits, int nlits, int pivot )
 {
@@ -381,6 +403,16 @@ void bmcg_sat_solver_start_new_round(bmcg_sat_solver* s)
 void bmcg_sat_solver_mark_cone(bmcg_sat_solver* s, int var)
 {
     ((Gluco::SimpSolver*)s)->sat_solver_mark_cone(var);
+}
+
+void Glucose_ReadDimacs( char * pFileName, Gluco::SimpSolver& s );
+
+void bmcg_sat_solver_read_dimacs( bmcg_sat_solver * s, char * pFileName) {
+    Glucose_ReadDimacs( pFileName, *(Gluco::SimpSolver*)s );
+}
+
+void bmcg_sat_solver_set_pars (bmcg_sat_solver * s, Glucose_Pars * pPars) {
+    ((Gluco::SimpSolver*)s)->verbosity = pPars->verb;
 }
 
 
@@ -825,6 +857,7 @@ void Glucose_SolveCnf( char * pFileName, Glucose_Pars * pPars, int fDumpCnf )
     SimpSolver  S;
     S.verbosity = pPars->verb;
     S.setConfBudget( pPars->nConfls > 0 ? (int64_t)pPars->nConfls : -1 );
+    S.setPropBudget( pPars->nPropls > 0 ? (int64_t)pPars->nPropls : -1);
 
 //    gzFile in = gzopen(pFilename, "rb");
 //    parse_DIMACS(in, S);

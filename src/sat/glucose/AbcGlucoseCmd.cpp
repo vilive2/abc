@@ -81,11 +81,12 @@ int Abc_CommandGlucose( Abc_Frame_t * pAbc, int argc, char ** argv )
     int pre     = 1;
     int verb    = 0;
     int nConfls = 0;
+    int nPropls = 0;
     int fDumpCnf = 0;
 
     Glucose_Pars pPars;
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "Cpdvh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "CPpdvh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -98,6 +99,17 @@ int Abc_CommandGlucose( Abc_Frame_t * pAbc, int argc, char ** argv )
                 nConfls = atoi(argv[globalUtilOptind]);
                 globalUtilOptind++;
                 if ( nConfls < 0 )
+                    goto usage;
+                break;
+            case 'P':
+                if ( globalUtilOptind >= argc )
+                {
+                    Abc_Print( -1, "Command line switch \"-P\" should be followed by an integer.\n" );
+                    goto usage;
+                }
+                nPropls = atoi(argv[globalUtilOptind]);
+                globalUtilOptind++;
+                if ( nPropls < 0 )
                     goto usage;
                 break;
             case 'p':
@@ -116,7 +128,7 @@ int Abc_CommandGlucose( Abc_Frame_t * pAbc, int argc, char ** argv )
         }
     }
 
-    pPars = Glucose_CreatePars(pre,verb,0,nConfls);
+    pPars = Glucose_CreatePars(pre,verb,0,nConfls,nPropls);
 
     if ( argc == globalUtilOptind + 1 )
     {
@@ -136,9 +148,10 @@ int Abc_CommandGlucose( Abc_Frame_t * pAbc, int argc, char ** argv )
     return 0;
     
 usage:
-    Abc_Print( -2, "usage: &glucose [-C num] [-pdvh] <file.cnf>\n" );
+    Abc_Print( -2, "usage: &glucose [-CP num] [-pdvh] <file.cnf>\n" );
     Abc_Print( -2, "\t             run Glucose 3.0 by Gilles Audemard and Laurent Simon\n" );
     Abc_Print( -2, "\t-C num     : conflict limit [default = %d]\n",  nConfls );
+    Abc_Print( -2, "\t-P num     : propagation limit [default = %d]\n",  nPropls );
     Abc_Print( -2, "\t-p         : enable preprocessing [default = %d]\n",pre);
     Abc_Print( -2, "\t-d         : enable dumping CNF after proprocessing [default = %d]\n",fDumpCnf);
     Abc_Print( -2, "\t-v         : verbosity [default = %d]\n",verb);

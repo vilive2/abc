@@ -33,7 +33,7 @@
 
 #define GLUCOSE_UNSAT -1
 #define GLUCOSE_SAT    1
-#define GLUCOSE_UNDEC  0
+#define GLUCOSE_UNDEC  0          
 
 
 ABC_NAMESPACE_HEADER_START
@@ -48,15 +48,17 @@ struct Glucose_Pars_ {
     int verb;    // verbosity
     int cust;    // customizable
     int nConfls; // conflict limit (0 = no limit)
+    int nPropls; // propagation limit (0 = no limit)
 };
 
-static inline Glucose_Pars Glucose_CreatePars(int p, int v, int c, int nConfls)
+static inline Glucose_Pars Glucose_CreatePars(int p, int v, int c, int nConfls, int nPropls)
 {
     Glucose_Pars pars;
     pars.pre     = p;
     pars.verb    = v;
     pars.cust    = c;
     pars.nConfls = nConfls;
+    pars.nPropls = nPropls;
     return pars;
 }
 
@@ -88,10 +90,14 @@ extern int               bmcg_sat_solver_read_cex_varvalue( bmcg_sat_solver* s, 
 extern void              bmcg_sat_solver_set_stop( bmcg_sat_solver* s, int * pstop );
 extern abctime           bmcg_sat_solver_set_runtime_limit( bmcg_sat_solver* s, abctime Limit );
 extern void              bmcg_sat_solver_set_conflict_budget( bmcg_sat_solver* s, int Limit );
+extern void              bmcg_sat_solver_set_propagation_budget( bmcg_sat_solver* s, int Limit );
 extern int               bmcg_sat_solver_varnum( bmcg_sat_solver* s );
 extern int               bmcg_sat_solver_clausenum( bmcg_sat_solver* s );
 extern int               bmcg_sat_solver_learntnum( bmcg_sat_solver* s );
 extern int               bmcg_sat_solver_conflictnum( bmcg_sat_solver* s );
+extern int               bmcg_sat_solver_propagationnum( bmcg_sat_solver* s );
+extern int               bmcg_sat_solver_restartnum( bmcg_sat_solver* s );
+extern int               bmcg_sat_solver_decisionnum( bmcg_sat_solver* s );
 extern int               bmcg_sat_solver_minimize_assumptions( bmcg_sat_solver * s, int * plits, int nlits, int pivot );
 extern int               bmcg_sat_solver_add_and( bmcg_sat_solver * s, int iVar, int iVar0, int iVar1, int fCompl0, int fCompl1, int fCompl );
 extern int               bmcg_sat_solver_add_xor( bmcg_sat_solver * s, int iVarA, int iVarB, int iVarC, int fCompl );
@@ -103,6 +109,8 @@ extern void              bmcg_sat_solver_set_jftr( bmcg_sat_solver * s, int jftr
 extern void              bmcg_sat_solver_set_var_fanin_lit( bmcg_sat_solver * s, int var, int lit0, int lit1 );
 extern void              bmcg_sat_solver_start_new_round( bmcg_sat_solver * s );
 extern void              bmcg_sat_solver_mark_cone( bmcg_sat_solver * s, int var );
+extern void              bmcg_sat_solver_read_dimacs( bmcg_sat_solver * s, char * pFileName);
+extern void              bmcg_sat_solver_set_pars (bmcg_sat_solver *s, Glucose_Pars *pPars);
 
 
 extern void              Glucose_SolveCnf( char * pFilename, Glucose_Pars * pPars, int fDumpCnf );
