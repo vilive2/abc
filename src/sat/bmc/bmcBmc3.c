@@ -1442,7 +1442,11 @@ int Saig_ManCallSolver( Gia_ManBmc_t * p, int Lit )
         int status = satoko_solve_assumptions_limit( p->pSat2, &Lit, 1, p->pPars->nConfLimit );
         if (p->pPars->pData != NULL) {
             p->pPars->pData->nSat++;
-            p->pPars->pData->nLearnt += satoko_learntnum(p->pSat2);
+            p->pPars->pData->nLearnt = satoko_learntnum(p->pSat2);
+            p->pPars->pData->nClause = satoko_clausenum(p->pSat2);
+            p->pPars->pData->nDecisions = satoko_decisionnum(p->pSat2);
+            p->pPars->pData->nConflicts = satoko_conflictnum(p->pSat2);
+            p->pPars->pData->nPropagations = satoko_propagationnum(p->pSat2);
         }
         return status;
     }
@@ -1450,7 +1454,18 @@ int Saig_ManCallSolver( Gia_ManBmc_t * p, int Lit )
     {
         // p->pPars->nSat++;
         bmcg_sat_solver_set_conflict_budget( p->pSat3, p->pPars->nConfLimit );
-        return bmcg_sat_solver_solve( p->pSat3, &Lit, 1 );
+        int status = bmcg_sat_solver_solve( p->pSat3, &Lit, 1 );
+
+        if (p->pPars->pData != NULL) {
+            p->pPars->pData->nSat++;
+            p->pPars->pData->nLearnt = bmcg_sat_solver_learntnum(p->pSat3);
+            p->pPars->pData->nClause = bmcg_sat_solver_clausenum(p->pSat3);
+            p->pPars->pData->nDecisions = bmcg_sat_solver_decisionnum(p->pSat3);
+            p->pPars->pData->nConflicts = bmcg_sat_solver_conflictnum(p->pSat3);
+            p->pPars->pData->nPropagations = bmcg_sat_solver_propagationnum(p->pSat3);
+        }
+
+        return status;
     }
     else
         return sat_solver_solve( p->pSat, &Lit, &Lit + 1, (ABC_INT64_T)p->pPars->nConfLimit, (ABC_INT64_T)0, (ABC_INT64_T)0, (ABC_INT64_T)0 );

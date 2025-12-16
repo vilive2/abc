@@ -135,6 +135,8 @@ extern satoko_opts_t * satoko_options(satoko_t *);
 extern int satoko_varnum(satoko_t *);
 extern int satoko_clausenum(satoko_t *);
 extern int satoko_learntnum(satoko_t *);
+extern int satoko_decisionnum(satoko_t *);
+extern int satoko_propagationnum(satoko_t *);
 extern int satoko_conflictnum(satoko_t *);
 extern void satoko_set_stop(satoko_t *, int *);
 extern void satoko_set_stop_func(satoko_t *s, int (*fnct)(int));

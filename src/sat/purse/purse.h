@@ -9,6 +9,9 @@
 #define ABC_UNSAT 1
 #define ABC_UNDEC -1
 
+#define INF 1e9
+#define EPS 1e-9
+
 #define DEBUG_PURSE 1
 
 #include "misc/vec/vec.h"
@@ -18,6 +21,8 @@ typedef struct {
     int nPropLimit;
     int nTimeOut;
     int fVerbose;
+    int fUseGlucose;
+    int fUseSatoko;
     char * pLogFileName;
 } PursePar_t;
 
@@ -26,6 +31,10 @@ typedef struct {
     unsigned int nFrame;
     unsigned int nLearnt;
     unsigned int nDecisions;
+    unsigned int nClause;
+    unsigned int nConflicts;
+    unsigned int nPropagations;
+    double score;
 } PurseData_t;
 
 
@@ -37,6 +46,8 @@ typedef struct {
 } PurseObj_t;
 
 extern int CompLearnt(const void *a, const void *b);
+extern int CompScore(const void *a, const void *b);
+extern int CompFrame(const void *a, const void *b);
 
 extern void PurseDataInit ( PurseData_t *pData);
 

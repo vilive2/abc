@@ -637,6 +637,14 @@ int satoko_learntnum(satoko_t *s)
     return vec_uint_size(s->learnts);
 }
 
+int satoko_decisionnum(satoko_t *s) {
+    return s->stats.n_decisions;
+}
+
+int satoko_propagationnum(satoko_t *s) {
+    return s->stats.n_propagations;
+}
+
 int satoko_conflictnum(satoko_t *s)
 {
     return satoko_stats(s)->n_conflicts_all;
