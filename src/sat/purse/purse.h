@@ -21,9 +21,11 @@ typedef struct {
     int nPropLimit;
     int nTimeOut;
     int fVerbose;
+    int purseVerbose;
     int fUseGlucose;
     int fUseSatoko;
     char * pLogFileName;
+    FILE *pLogFile;
 } PursePar_t;
 
 typedef struct {
@@ -34,6 +36,7 @@ typedef struct {
     unsigned int nClause;
     unsigned int nConflicts;
     unsigned int nPropagations;
+    unsigned int nTime;
     double score;
 } PurseData_t;
 
@@ -53,6 +56,6 @@ extern void PurseDataInit ( PurseData_t *pData);
 
 extern void ParPurseSetDefaultParams ( PursePar_t *pPars);
 
-extern void PrintStat( Vec_Ptr_t *objs);
+extern void PrintStat( Vec_Ptr_t *objs, FILE *fp);
 
 #endif 

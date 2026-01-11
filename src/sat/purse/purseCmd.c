@@ -29,7 +29,7 @@ int Abc_CommandPurse( Abc_Frame_t * pAbc, int argc, char ** argv )
     int c;
     ParPurseSetDefaultParams( pPars );
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "SFTHGCDJIPQRLWaxdursgvzh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "SFTHGCDJIPQRLWaxdursgvVzh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -78,6 +78,9 @@ int Abc_CommandPurse( Abc_Frame_t * pAbc, int argc, char ** argv )
         case 'v':
             pPars->fVerbose ^= 1;
             break;
+        case 'V':
+            pPars->purseVerbose = 1;
+            break;
         case 's':
             pPars->fUseSatoko ^= 1;
             break;
@@ -115,8 +118,17 @@ int Abc_CommandPurse( Abc_Frame_t * pAbc, int argc, char ** argv )
         Abc_Print( 1, "The miters is already solved; skipping the command.\n" ); 
         return 0;
     }
+
+    if (pLogFileName) {
+        pPars->pLogFile = fopen(pLogFileName, "wb");
+    }
     
     PurseMultiPropertyVerification(pNtk, pPars);
+
+    if (pPars->pLogFile) {
+        fclose (pPars->pLogFile);
+    }
+    
     return 0;
 
 usage:
@@ -126,7 +138,8 @@ usage:
     Abc_Print( -2, "\t-C num : conflict limit [default = %d]\n",                       pPars->nConfLimit );
     Abc_Print( -2, "\t-P num : propagation limit [default = %d]\n",                       pPars->nPropLimit );
     Abc_Print( -2, "\t-L file: the log file name [default = %s]\n",                               pLogFileName ? pLogFileName : "no logging" );
-    Abc_Print( -2, "\t-v     : toggle verbose output [default = %s]\n",                           pPars->fVerbose? "yes": "no" );
+    Abc_Print( -2, "\t-v     : toggle verbose BMC output [default = %s]\n",                           pPars->fVerbose? "yes": "no" );
+    Abc_Print( -2, "\t-V     : toggle verbose PURSE output [default = %s]\n",                           pPars->purseVerbose? "yes": "no" );
     Abc_Print( -2, "\t-s     : use satoko sat solver\n");
     Abc_Print( -2, "\t-g     : use glucose sat solver\n");
     Abc_Print( -2, "\t-h     : print the command usage\n");
