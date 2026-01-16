@@ -12,6 +12,7 @@ void ParPurseSetDefaultParams ( PursePar_t *pPars) {
     pPars->nTimeOut = ABC_INT_MAX;
     pPars->fVerbose = 0;
     pPars->pLogFileName = NULL;
+    pPars->pLogFile = NULL;
     pPars->fUseGlucose = 0;
     pPars->fUseSatoko = 0;
     pPars->purseVerbose = 0;
@@ -189,7 +190,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         pNtk = obj->ntk;
         Abc_NtkDelete(pNtk);
     }
-    Abc_NtkDelete(orgNtk);
+    // Abc_NtkDelete(orgNtk);
     free(objs);
     free(pdata);
     Vec_IntFree(vPoIds);
