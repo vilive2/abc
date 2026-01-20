@@ -9,6 +9,9 @@
 #define ABC_UNSAT 1
 #define ABC_UNDEC -1
 
+// int Abc_Frame_t_::Status
+// the status of verification problem (proved=1, disproved=0, undecided=-1)
+
 #define INF 1e9
 #define EPS 1e-9
 

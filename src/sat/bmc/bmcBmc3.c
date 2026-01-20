@@ -1603,8 +1603,6 @@ int Saig_ManBmcScalable( Aig_Man_t * pAig, Saig_ParBmc_t * pPars )
         if ( (pPars->nStart && f < pPars->nStart) || (nJumpFrame && f < nJumpFrame) )
             continue;
         
-        if (pPars->pData != NULL)
-            pPars->pData->nFrame++;
         // create CNF upfront
         if ( pPars->fSolveAll )
         {
@@ -1913,6 +1911,15 @@ finish:
     fflush( stdout );
     if ( pLogFile )
         fclose( pLogFile );
+    
+    if (pPars->pData != NULL) {
+        // total new frame explored in this call
+        if (RetValue == -1) {
+            pPars->pData->nFrame = f - pPars->nStart; // exclude last frame not explored completly due to time out
+        } else {
+            pPars->pData->nFrame = f - pPars->nStart + 1; // included last frame because SAT/UNSAT result in last frame
+        }
+    }
     return RetValue;
 }
 

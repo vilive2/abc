@@ -37,8 +37,8 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
 
     int (*comparator)(const void *, const void *);
     // comparator = CompLearnt;
-    comparator = CompScore;
-    // comparator = CompFrame;
+    // comparator = CompScore;
+    comparator = CompFrame;
     
     Vec_Int_t *vPoIds = Vec_IntStart(1); 
     Saig_ParBmc_t Pars, * pBmcPars = &Pars;
@@ -117,8 +117,8 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
 
             pBmcPars->nStart = obj->pData->nFrame;
             // pBmcPars->nStart = 0;
-            pBmcPars->nConfLimit = CB;
-            pBmcPars->nPropLimit = PB;
+            // pBmcPars->nConfLimit = CB;
+            // pBmcPars->nPropLimit = PB;
             pBmcPars->nTimeOut = TB;
             pBmcPars->fSilent = 1;
             pBmcPars->iFrame = -1;
@@ -137,15 +137,15 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
                 Vec_PtrFree(unk_goals);
                 goto finish;
             }
-
+// 386
             obj->pData->nFrame += pBmcPars->pData->nFrame;
-            obj->pData->nSat += pBmcPars->pData->nSat;
-            obj->pData->nLearnt = pBmcPars->pData->nLearnt;
-            obj->pData->nDecisions = pBmcPars->pData->nDecisions;
-            obj->pData->nClause = pBmcPars->pData->nClause;
-            obj->pData->nConflicts = pBmcPars->pData->nConflicts;
-            obj->pData->nPropagations = pBmcPars->pData->nPropagations;
-            obj->pData->score = pBmcPars->pData->nClause == 0 ? INF : obj->pData->score + 1.0 * pBmcPars->pData->nLearnt / pBmcPars->pData->nClause;
+            // obj->pData->nSat += pBmcPars->pData->nSat;
+            // obj->pData->nLearnt = pBmcPars->pData->nLearnt;
+            // obj->pData->nDecisions = pBmcPars->pData->nDecisions;
+            // obj->pData->nClause = pBmcPars->pData->nClause;
+            // obj->pData->nConflicts = pBmcPars->pData->nConflicts;
+            // obj->pData->nPropagations = pBmcPars->pData->nPropagations;
+            // obj->pData->score = pBmcPars->pData->nClause == 0 ? INF : obj->pData->score + 1.0 * pBmcPars->pData->nLearnt / pBmcPars->pData->nClause;
             
             clock_t end_time = clock();
             T += (double)(end_time - start_time) / CLOCKS_PER_SEC;
