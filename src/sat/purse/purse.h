@@ -18,6 +18,7 @@
 #define DEBUG_PURSE 1
 
 #include "misc/vec/vec.h"
+#include "misc/util/abc_global.h"
 
 typedef struct {
     int nConfLimit;
@@ -39,7 +40,7 @@ typedef struct {
     unsigned int nClause;
     unsigned int nConflicts;
     unsigned int nPropagations;
-    unsigned int nTime;
+    abctime nClk;
     double score;
 } PurseData_t;
 

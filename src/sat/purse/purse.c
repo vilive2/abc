@@ -2,6 +2,7 @@
 #include "base/main/abcapis.h"
 #include "base/main/main.h"
 #include "misc/vec/vec.h"
+#include "misc/util/abc_global.h"
 #include "sat/bmc/bmc.h"
 #include "purse.h"
 
@@ -28,7 +29,7 @@ void PurseDataInit ( PurseData_t *pData) {
     pData->score = 0;
     pData->nConflicts = 0;
     pData->nPropagations = 0;
-    pData->nTime = 0;
+    pData->nClk = 0;
 }
 
 void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
@@ -46,7 +47,6 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
     Saig_ParBmcSetDefaultParams( pBmcPars );
     PurseData_t pData;
     pBmcPars->pData = &pData;
-    pBmcPars->nTimeOut = pPars->nTimeOut;
     pBmcPars->pLogFileName = pPars->pLogFileName;
     pBmcPars->fUseSatoko = pPars->fUseSatoko;
     pBmcPars->fUseGlucose = pPars->fUseGlucose;
@@ -76,7 +76,10 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         Vec_PtrWriteEntry(Lp, i, &objs[i]);
     }
 
-    int CB, PB, TB, timeRemainig = pPars->nTimeOut;
+    int CB, PB;
+    abctime clkTotal = Abc_Clock();
+    abctime nTimeToStop = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock() : 0;
+    abctime clk, clkRun, clkBudget = CLOCKS_PER_SEC, clkRem = pPars->nTimeOut * CLOCKS_PER_SEC;
     
     if (size < gates) {
         CB = pPars->nConfLimit;
@@ -89,11 +92,9 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         PB = pPars->nPropLimit * 11;
     }
 
-    TB = timeRemainig < 16 ? timeRemainig : 16;
 
     int j = 0;
-    double T = 0.0;
-
+    
     while (1) {
         int solved = 0;
         Vec_Ptr_t *unk_goals = Vec_PtrAlloc( Vec_PtrSize(Lp) );
@@ -103,7 +104,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         
         if (pPars->purseVerbose) {
             printf("\nIteration: %d\n", j);
-            printf("Params: ConfLimit = %d. PropLimit = %d. TimeOut = %d.\n", CB, PB, TB);
+            printf("Params: ConfLimit = %d. PropLimit = %d. TimeOut = %d.\n", CB, PB, (int)clkBudget / (int)CLOCKS_PER_SEC);
             PrintStat (Lp, stdout);
         }
 
@@ -111,19 +112,22 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         PurseObj_t *obj;
         Vec_PtrForEachEntry( PurseObj_t *, Lp, obj, idx ) {
 
-            clock_t start_time = clock();
-
+            
             pNtk = (Abc_Ntk_t *)(obj->ntk);
-
+            
             pBmcPars->nStart = obj->pData->nFrame;
             // pBmcPars->nStart = 0;
             // pBmcPars->nConfLimit = CB;
             // pBmcPars->nPropLimit = PB;
-            pBmcPars->nTimeOut = TB;
+            pBmcPars->nTimeOut = (int)clkBudget / (int)CLOCKS_PER_SEC;
             pBmcPars->fSilent = 1;
             pBmcPars->iFrame = -1;
             PurseDataInit (pBmcPars->pData);
+            
+            
+            clk = Abc_Clock();
             int status = Abc_NtkDarBmc3(pNtk, pBmcPars, fOrDecomp);
+            clkRun = Abc_Clock() - clk;
 
             if (status == ABC_SAT) {
                 obj->status = PURSE_SAT;
@@ -137,7 +141,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
                 Vec_PtrFree(unk_goals);
                 goto finish;
             }
-// 386
+
             obj->pData->nFrame += pBmcPars->pData->nFrame;
             // obj->pData->nSat += pBmcPars->pData->nSat;
             // obj->pData->nLearnt = pBmcPars->pData->nLearnt;
@@ -146,12 +150,12 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
             // obj->pData->nConflicts = pBmcPars->pData->nConflicts;
             // obj->pData->nPropagations = pBmcPars->pData->nPropagations;
             // obj->pData->score = pBmcPars->pData->nClause == 0 ? INF : obj->pData->score + 1.0 * pBmcPars->pData->nLearnt / pBmcPars->pData->nClause;
-            
-            clock_t end_time = clock();
-            T += (double)(end_time - start_time) / CLOCKS_PER_SEC;
-            obj->pData->nTime += (end_time - start_time) / CLOCKS_PER_SEC;
+            obj->pData->nClk += clkRun;
+            clkRem -= clkRun;
 
-            if (T > pPars->nTimeOut)
+            clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
+            
+            if ( nTimeToStop && Abc_Clock() > nTimeToStop )
                 break;
         }
 
@@ -160,19 +164,19 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         
         j++;
 
-        if (T < pPars->nTimeOut && Lp->nSize != 0) {
-            Vec_PtrSort(Lp, comparator);
-        } else {
-            break;
-        }
 
-        timeRemainig = pPars->nTimeOut - T;
+        if ( Lp->nSize == 0 ) break;
+        if ( nTimeToStop && Abc_Clock() > nTimeToStop ) break;
+    
+        Vec_PtrSort(Lp, comparator);
+        
         if (solved == 0) {
             CB = CB * 2;
             PB = PB * 2;
-            TB = TB * 2;
-            TB = timeRemainig < TB ? timeRemainig : TB;
+            clkBudget = clkBudget * 2;
         }
+        clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
+        printf("\rcompleted: %9.2f sec.", (float)(Abc_Clock() - clkTotal) / (float)CLOCKS_PER_SEC);
     }
 
     Vec_PtrFree(Lp);
