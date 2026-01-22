@@ -21,15 +21,8 @@
 #include "misc/util/abc_global.h"
 
 typedef struct {
-    int nConfLimit;
-    int nPropLimit;
     int nTimeOut;
     int fVerbose;
-    int purseVerbose;
-    int fUseGlucose;
-    int fUseSatoko;
-    char * pLogFileName;
-    FILE *pLogFile;
 } PursePar_t;
 
 typedef struct {

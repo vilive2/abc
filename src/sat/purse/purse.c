@@ -8,15 +8,8 @@
 
 void ParPurseSetDefaultParams ( PursePar_t *pPars) {
     assert (pPars != NULL);
-    pPars->nConfLimit = 0;
-    pPars->nPropLimit = 0;
     pPars->nTimeOut = ABC_INT_MAX;
     pPars->fVerbose = 0;
-    pPars->pLogFileName = NULL;
-    pPars->pLogFile = NULL;
-    pPars->fUseGlucose = 0;
-    pPars->fUseSatoko = 0;
-    pPars->purseVerbose = 0;
 }
 
 void PurseDataInit ( PurseData_t *pData) {
@@ -47,18 +40,12 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
     Saig_ParBmcSetDefaultParams( pBmcPars );
     PurseData_t pData;
     pBmcPars->pData = &pData;
-    pBmcPars->pLogFileName = pPars->pLogFileName;
-    pBmcPars->fUseSatoko = pPars->fUseSatoko;
-    pBmcPars->fUseGlucose = pPars->fUseGlucose;
-    pBmcPars->fVerbose ^= pPars->fVerbose;
+    pBmcPars->fUseGlucose = 1;
     pBmcPars->fSilent = 1;
     Abc_Ntk_t *orgNtk;
     orgNtk = Abc_NtkDup(pNtk);
 
     int N = Abc_NtkPoNum(orgNtk);
-    int gates = 100;
-    int size = Abc_NtkNodeNum(orgNtk);
-
 
     PurseObj_t *objs = ABC_ALLOC(PurseObj_t, N);
     PurseData_t *pdata = ABC_ALLOC(PurseData_t, N);
@@ -76,21 +63,9 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         Vec_PtrWriteEntry(Lp, i, &objs[i]);
     }
 
-    int CB, PB;
     abctime clkTotal = Abc_Clock();
     abctime nTimeToStop = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock() : 0;
     abctime clk, clkRun, clkBudget = CLOCKS_PER_SEC, clkRem = pPars->nTimeOut * CLOCKS_PER_SEC;
-    
-    if (size < gates) {
-        CB = pPars->nConfLimit;
-        PB = pPars->nPropLimit;
-    } else if (size < gates * 10) {
-        CB = pPars->nConfLimit * ((size % gates) + 1);
-        PB = pPars->nPropLimit * ((size % gates) + 1);
-    } else {
-        CB = pPars->nConfLimit * 11;
-        PB = pPars->nPropLimit * 11;
-    }
 
 
     int j = 0;
@@ -102,9 +77,9 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         #ifdef DEBUG_PURSE
         #endif
         
-        if (pPars->purseVerbose) {
+        if (pPars->fVerbose) {
             printf("\nIteration: %d\n", j);
-            printf("Params: ConfLimit = %d. PropLimit = %d. TimeOut = %d.\n", CB, PB, (int)clkBudget / (int)CLOCKS_PER_SEC);
+            printf("Params: TimeOut = %d.\n",(int)clkBudget / (int)CLOCKS_PER_SEC);
             PrintStat (Lp, stdout);
         }
 
@@ -117,8 +92,6 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
             
             pBmcPars->nStart = obj->pData->nFrame;
             // pBmcPars->nStart = 0;
-            // pBmcPars->nConfLimit = CB;
-            // pBmcPars->nPropLimit = PB;
             pBmcPars->nTimeOut = (int)clkBudget / (int)CLOCKS_PER_SEC;
             pBmcPars->fSilent = 1;
             pBmcPars->iFrame = -1;
@@ -171,8 +144,6 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         Vec_PtrSort(Lp, comparator);
         
         if (solved == 0) {
-            CB = CB * 2;
-            PB = PB * 2;
             clkBudget = clkBudget * 2;
         }
         clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
@@ -185,8 +156,6 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
     Vec_PtrSort(Lp, comparator);
     printf("finally:\n");
     PrintStat(Lp, stdout);
-    if (pPars->pLogFile) PrintStat(Lp, pPars->pLogFile);
-
 
     finish:
     for(int i = 0 ; i < N ; i++) {
