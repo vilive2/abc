@@ -82,7 +82,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         
         if (pPars->fVerbose) {
             printf("\nIteration: %d\n", j);
-            printf("Params: TimeOut = %d.\n",(int)clkBudget / (int)CLOCKS_PER_SEC);
+            printf("Params: TimeOut = %d.\n",(int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC);
             PrintStat (Lp, stdout);
         }
 
@@ -95,7 +95,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
             
             pBmcPars->nStart = obj->pData->nFrame;
             // pBmcPars->nStart = 0;
-            pBmcPars->nTimeOut = (int)clkBudget / (int)CLOCKS_PER_SEC;
+            pBmcPars->nTimeOut = (int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC;
             pBmcPars->fSilent = 1;
             pBmcPars->iFrame = -1;
             PurseDataInit (pBmcPars->pData);
@@ -135,6 +135,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
             
             if ( nTimeToStop && Abc_Clock() > nTimeToStop )
                 break;
+            if (clkBudget <= 0) break;
         }
 
         Vec_PtrFree(Lp);
@@ -145,6 +146,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
 
         if ( Lp->nSize == 0 ) break;
         if ( nTimeToStop && Abc_Clock() > nTimeToStop ) break;
+        if (clkBudget <= 0) break;
     
         Vec_PtrSort(Lp, comparator);
         
