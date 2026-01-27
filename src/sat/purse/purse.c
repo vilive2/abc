@@ -86,6 +86,22 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
             PrintStat (Lp, stdout);
         }
 
+        minClk = ABC_INFINITY;
+        maxClk = -1;
+        minFrame = ABC_INFINITY;
+        maxFrame = -1;
+        for (int i = 0 ; i < N ; i++)  {
+            minClk = minClk < objs[i].pData->nClk ? minClk : objs[i].pData->nClk;
+            maxClk = maxClk > objs[i].pData->nClk ? maxClk : objs[i].pData->nClk;
+            minFrame = Abc_MinInt(minFrame, (int)(objs[i].pData->nFrame));
+            maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
+        }
+
+        printf("\r%d SAT, %d UNSAT, %d UNDECIDED, ", nSat, nUnsat, N-nSat-nUnsat);
+        printf("minFrame %d, maxFrame %d, ", minFrame, maxFrame);
+        printf("minTime %9.2f sec., maxTime %9.2f sec., ", (float)minClk/(float)CLOCKS_PER_SEC, (float)maxClk/(float)CLOCKS_PER_SEC);
+        printf("completed %9.2f sec.", (float)(Abc_Clock() - clkTotal) / (float)CLOCKS_PER_SEC);
+
         int idx;
         PurseObj_t *obj;
         Vec_PtrForEachEntry( PurseObj_t *, Lp, obj, idx ) {
@@ -154,20 +170,23 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
             clkBudget = clkBudget * 2;
         }
         clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
-        printf("\rcompleted: %9.2f sec.", (float)(Abc_Clock() - clkTotal) / (float)CLOCKS_PER_SEC);
     }
 
     Vec_PtrFree(Lp);
     Lp = Vec_PtrStart(N);
+    minClk = ABC_INFINITY;
+    maxClk = -1;
+    minFrame = ABC_INFINITY;
+    maxFrame = -1;
     for (int i = 0 ; i < N ; i++)  {
         Vec_PtrWriteEntry(Lp, i, &objs[i]);
-        minClk = Abc_MinInt((int)minClk, (int)objs[i].pData->nClk);
-        maxClk = Abc_MaxInt((int)maxClk, (int)objs[i].pData->nClk);
+        minClk = minClk < objs[i].pData->nClk ? minClk : objs[i].pData->nClk;
+        maxClk = maxClk > objs[i].pData->nClk ? maxClk : objs[i].pData->nClk;
         minFrame = Abc_MinInt(minFrame, (int)(objs[i].pData->nFrame));
         maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
     }
     Vec_PtrSort(Lp, comparator);
-    printf("finally:\n");
+    printf("\nfinally:\n");
     PrintStat(Lp, stdout);
     printf("\n\n");
     printf("%d SAT, %d UNSAT, %d UNDECIDED\n", nSat, nUnsat, N-nSat-nUnsat);
