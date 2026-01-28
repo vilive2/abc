@@ -33,6 +33,7 @@ typedef struct {
     unsigned int nClause;
     unsigned int nConflicts;
     unsigned int nPropagations;
+    int propNum;
     abctime nClk;
     double score;
 } PurseData_t;

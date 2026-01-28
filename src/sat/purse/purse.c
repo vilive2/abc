@@ -53,7 +53,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
     pBmcPars->fSilent = 1;
     Abc_Ntk_t *orgNtk;
     orgNtk = Abc_NtkDup(pNtk);
-    PrintMem("After Abc_NtkDup");
+    // PrintMem("After Abc_NtkDup");
 
     int N = Abc_NtkPoNum(orgNtk);
 
@@ -120,11 +120,12 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
             // pNtk = (Abc_Ntk_t *)(obj->ntk);
             Vec_IntWriteEntry(vPoIds, 0, obj->propNum);
             pNtk = Abc_NtkDup(orgNtk);
-            PrintMem("After Abc_NtkDup");
+            // PrintMem("After Abc_NtkDup");
             pNtk = Abc_NtkSelectPos( pNtk, vPoIds);
-            PrintMem("After Abc_NtkSelectPos");
+            // PrintMem("After Abc_NtkSelectPos");
             
             pBmcPars->nStart = obj->pData->nFrame;
+            pBmcPars->pData->propNum = obj->propNum; // Just to Debug ,TODO: Remove
             // pBmcPars->nStart = 0;
             pBmcPars->nTimeOut = (int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC;
             pBmcPars->fSilent = 1;
@@ -134,7 +135,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
             
             clk = Abc_Clock();
             int status = Abc_NtkDarBmc3(pNtk, pBmcPars, fOrDecomp);
-            PrintMem("After BMC");
+            // PrintMem("After BMC");
             clkRun = Abc_Clock() - clk;
             Abc_NtkDelete(pNtk);
 
@@ -203,8 +204,8 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
     }
     Vec_PtrSort(Lp, comparator);
-    printf("\nfinally:\n");
-    PrintStat(Lp, stdout);
+    // printf("\nfinally:\n");
+    // PrintStat(Lp, stdout);
     printf("\n\n");
     printf("%d SAT, %d UNSAT, %d UNDECIDED\n", nSat, nUnsat, N-nSat-nUnsat);
     printf("minFrame %d, maxFrame %d\n", minFrame, maxFrame);
