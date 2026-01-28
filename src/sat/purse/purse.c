@@ -5,6 +5,15 @@
 #include "misc/util/abc_global.h"
 #include "sat/bmc/bmc.h"
 #include "purse.h"
+#include <sys/resource.h>
+
+static inline void PrintMem(const char *tag)
+{
+    struct rusage r;
+    getrusage(RUSAGE_SELF, &r);
+    printf("[MEM] %s: RSS = %.2f MB\n", tag, r.ru_maxrss / 1024.0);
+}
+
 
 void ParPurseSetDefaultParams ( PursePar_t *pPars) {
     assert (pPars != NULL);
@@ -44,6 +53,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
     pBmcPars->fSilent = 1;
     Abc_Ntk_t *orgNtk;
     orgNtk = Abc_NtkDup(pNtk);
+    PrintMem("After Abc_NtkDup");
 
     int N = Abc_NtkPoNum(orgNtk);
 
@@ -110,7 +120,9 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
             // pNtk = (Abc_Ntk_t *)(obj->ntk);
             Vec_IntWriteEntry(vPoIds, 0, obj->propNum);
             pNtk = Abc_NtkDup(orgNtk);
+            PrintMem("After Abc_NtkDup");
             pNtk = Abc_NtkSelectPos( pNtk, vPoIds);
+            PrintMem("After Abc_NtkSelectPos");
             
             pBmcPars->nStart = obj->pData->nFrame;
             // pBmcPars->nStart = 0;
@@ -122,6 +134,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
             
             clk = Abc_Clock();
             int status = Abc_NtkDarBmc3(pNtk, pBmcPars, fOrDecomp);
+            PrintMem("After BMC");
             clkRun = Abc_Clock() - clk;
             Abc_NtkDelete(pNtk);
 
