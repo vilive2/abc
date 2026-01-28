@@ -51,13 +51,13 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
     PurseData_t *pdata = ABC_ALLOC(PurseData_t, N);
     Vec_Ptr_t *Lp = Vec_PtrStart(N);
     for(int i = 0 ; i < N ; i++) {
-        Vec_IntWriteEntry(vPoIds, 0, i);
-        pNtk = Abc_NtkDup(orgNtk);
-        pNtk = Abc_NtkSelectPos( pNtk, vPoIds);
+        // Vec_IntWriteEntry(vPoIds, 0, i);
+        // pNtk = Abc_NtkDup(orgNtk);
+        // pNtk = Abc_NtkSelectPos( pNtk, vPoIds);
 
         objs[i].status = PURSE_UNDEC;
         objs[i].propNum = i;
-        objs[i].ntk = (void *)pNtk;
+        // objs[i].ntk = (void *)pNtk;
         PurseDataInit(&pdata[i]);
         objs[i].pData = &pdata[i];
         Vec_PtrWriteEntry(Lp, i, &objs[i]);
@@ -107,7 +107,10 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         Vec_PtrForEachEntry( PurseObj_t *, Lp, obj, idx ) {
 
             
-            pNtk = (Abc_Ntk_t *)(obj->ntk);
+            // pNtk = (Abc_Ntk_t *)(obj->ntk);
+            Vec_IntWriteEntry(vPoIds, 0, obj->propNum);
+            pNtk = Abc_NtkDup(orgNtk);
+            pNtk = Abc_NtkSelectPos( pNtk, vPoIds);
             
             pBmcPars->nStart = obj->pData->nFrame;
             // pBmcPars->nStart = 0;
@@ -120,6 +123,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
             clk = Abc_Clock();
             int status = Abc_NtkDarBmc3(pNtk, pBmcPars, fOrDecomp);
             clkRun = Abc_Clock() - clk;
+            Abc_NtkDelete(pNtk);
 
             if (status == ABC_SAT) {
                 obj->status = PURSE_SAT;
@@ -195,11 +199,11 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
     
 
     finish:
-    for(int i = 0 ; i < N ; i++) {
-        PurseObj_t *obj = &objs[i];
-        pNtk = obj->ntk;
-        Abc_NtkDelete(pNtk);
-    }
+    // for(int i = 0 ; i < N ; i++) {
+    //     PurseObj_t *obj = &objs[i];
+    //     pNtk = obj->ntk;
+    //     Abc_NtkDelete(pNtk);
+    // }
     // Abc_NtkDelete(orgNtk);
     free(objs);
     free(pdata);
