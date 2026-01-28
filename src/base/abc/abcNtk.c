@@ -1833,7 +1833,7 @@ Abc_Ntk_t * Abc_NtkSelectPos( Abc_Ntk_t * pNtkInit, Vec_Int_t * vPoIds )
     // clean the network
     if ( Abc_NtkIsStrash(pNtk) ) {
         Abc_AigCleanup( (Abc_Aig_t *)pNtk->pManFunc );
-        if ( Abc_NtkLatchNum(pNtk) ) printf( "Run sequential cleanup (\"scl\") to get rid of dangling logic.\n" );
+        if ( Abc_NtkLatchNum(pNtk) ) ;//printf( "Run sequential cleanup (\"scl\") to get rid of dangling logic.\n" );
     }
     else {
         if ( Abc_NtkLatchNum(pNtk) ) printf( "Run sequential cleanup (\"st; scl\") to get rid of dangling logic.\n" );
