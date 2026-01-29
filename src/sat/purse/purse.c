@@ -77,6 +77,8 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
     abctime nTimeToStop = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock() : 0;
     abctime clk, clkRun, clkBudget = CLOCKS_PER_SEC, clkRem = pPars->nTimeOut * CLOCKS_PER_SEC;
 
+    int conflictBudget = 1<<10;
+
     int nSat = 0, nUnsat = 0;
     int minFrame = ABC_INFINITY, maxFrame = -ABC_INFINITY;
     abctime minClk = ABC_INFINITY, maxClk = -ABC_INFINITY;
@@ -108,6 +110,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         }
 
         printf("\r%d SAT, %d UNSAT, %d UNDECIDED, ", nSat, nUnsat, N-nSat-nUnsat);
+        printf("timeLimit %d sec., conflictLimt %d, ", (int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC, conflictBudget);
         printf("minFrame %d, maxFrame %d, ", minFrame, maxFrame);
         printf("minTime %9.2f sec., maxTime %9.2f sec., ", (float)minClk/(float)CLOCKS_PER_SEC, (float)maxClk/(float)CLOCKS_PER_SEC);
         printf("completed %9.2f sec.", (float)(Abc_Clock() - clkTotal) / (float)CLOCKS_PER_SEC);
@@ -128,6 +131,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
             pBmcPars->pData->propNum = obj->propNum; // Just to Debug ,TODO: Remove
             // pBmcPars->nStart = 0;
             pBmcPars->nTimeOut = (int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC;
+            pBmcPars->nConfLimit = conflictBudget;
             pBmcPars->fSilent = 1;
             pBmcPars->iFrame = -1;
             PurseDataInit (pBmcPars->pData);
@@ -186,6 +190,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         
         if (solved == 0) {
             clkBudget = clkBudget * 2;
+            conflictBudget = conflictBudget * 2 < INF ? conflictBudget * 2 : conflictBudget;
         }
         clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
     }
@@ -226,3 +231,10 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
 
     return ;
 }
+
+/*
+design: 6s306.aig
+propNum: 24
+nStart: 34849
+nTimeOut: 64
+*/
