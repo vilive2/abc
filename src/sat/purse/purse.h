@@ -15,7 +15,7 @@
 #define INF 1e9
 #define EPS 1e-9
 
-#define DEBUG_PURSE 1
+// #define DEBUG_PURSE 1
 
 #include "misc/vec/vec.h"
 #include "misc/util/abc_global.h"
@@ -49,6 +49,7 @@ typedef struct {
 extern int CompLearnt(const void *a, const void *b);
 extern int CompScore(const void *a, const void *b);
 extern int CompFrame(const void *a, const void *b);
+extern int CompFPS(const void *a, const void *b);
 
 extern void PurseDataInit ( PurseData_t *pData);
 
