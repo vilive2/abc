@@ -7,13 +7,19 @@
 #include "purse.h"
 #include <sys/resource.h>
 
+ABC_NAMESPACE_HEADER_START
+
+extern int Abc_NtkDarBmc3( Abc_Ntk_t * pNtk, Saig_ParBmc_t * pPars, int fOrDecomp );
+extern Abc_Ntk_t * Abc_NtkSelectPos( Abc_Ntk_t * pNtkInit, Vec_Int_t * vPoIds );
+
+ABC_NAMESPACE_HEADER_END
+
 static inline void PrintMem(const char *tag)
 {
     struct rusage r;
     getrusage(RUSAGE_SELF, &r);
     printf("[MEM] %s: RSS = %.2f MB\n", tag, r.ru_maxrss / 1024.0);
 }
-
 
 void ParPurseSetDefaultParams ( PursePar_t *pPars) {
     assert (pPars != NULL);
@@ -35,8 +41,6 @@ void PurseDataInit ( PurseData_t *pData) {
 }
 
 void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
-    extern int Abc_NtkDarBmc3( Abc_Ntk_t * pNtk, Saig_ParBmc_t * pPars, int fOrDecomp );
-    extern Abc_Ntk_t * Abc_NtkSelectPos( Abc_Ntk_t * pNtkInit, Vec_Int_t * vPoIds );
 
     int (*comparator)(const void *, const void *);
     // comparator = CompLearnt;

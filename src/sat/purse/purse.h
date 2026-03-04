@@ -15,10 +15,13 @@
 #define INF 1e9
 #define EPS 1e-9
 
-// #define DEBUG_PURSE 1
+#define DEBUG_PURSE 1
 
 #include "misc/vec/vec.h"
 #include "misc/util/abc_global.h"
+
+
+ABC_NAMESPACE_HEADER_START
 
 typedef struct {
     int nTimeOut;
@@ -56,5 +59,7 @@ extern void PurseDataInit ( PurseData_t *pData);
 extern void ParPurseSetDefaultParams ( PursePar_t *pPars);
 
 extern void PrintStat( Vec_Ptr_t *objs, FILE *fp);
+
+ABC_NAMESPACE_HEADER_END
 
 #endif 
