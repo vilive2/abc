@@ -1,6 +1,12 @@
 #include "base/main/mainInt.h"
 #include "purse.h"
 
+ABC_NAMESPACE_HEADER_START
+
+extern void Purse_Init(Abc_Frame_t *pAbc);
+
+ABC_NAMESPACE_HEADER_END
+
 static int Abc_CommandPurse( Abc_Frame_t * pAbc, int argc, char ** argv );
 
 void Purse_Init(Abc_Frame_t *pAbc)

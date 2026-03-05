@@ -20,6 +20,9 @@
 #include "misc/vec/vec.h"
 #include "misc/util/abc_global.h"
 
+
+ABC_NAMESPACE_HEADER_START
+
 typedef struct {
     int nTimeOut;
     int fVerbose;
@@ -49,12 +52,13 @@ typedef struct {
 extern int CompLearnt(const void *a, const void *b);
 extern int CompScore(const void *a, const void *b);
 extern int CompFrame(const void *a, const void *b);
-extern int CompFPS(const void *a, const void *b);
 
 extern void PurseDataInit ( PurseData_t *pData);
 
 extern void ParPurseSetDefaultParams ( PursePar_t *pPars);
 
 extern void PrintStat( Vec_Ptr_t *objs, FILE *fp);
+
+ABC_NAMESPACE_HEADER_END
 
 #endif 
