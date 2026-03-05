@@ -5,7 +5,10 @@
 #include "misc/util/abc_global.h"
 #include "sat/bmc/bmc.h"
 #include "purse.h"
+#include "comp.h"
 #include <sys/resource.h>
+#include <queue>
+#include <vector>
 
 ABC_NAMESPACE_HEADER_START
 
@@ -42,11 +45,11 @@ void PurseDataInit ( PurseData_t *pData) {
 
 void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
 
-    int (*comparator)(const void *, const void *);
+    // int (*comparator)(const void *, const void *);
     // comparator = CompLearnt;
     // comparator = CompScore;
     // comparator = CompFrame;
-    comparator = CompFPS;
+    // comparator = CompFPS;
     
     Vec_Int_t *vPoIds = Vec_IntStart(1); 
     Saig_ParBmc_t Pars, * pBmcPars = &Pars;
@@ -64,7 +67,8 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
 
     PurseObj_t *objs = ABC_ALLOC(PurseObj_t, N);
     PurseData_t *pdata = ABC_ALLOC(PurseData_t, N);
-    Vec_Ptr_t *Lp = Vec_PtrStart(N);
+    // Vec_Ptr_t *Lp = Vec_PtrStart(N);
+    std::priority_queue<PurseObj_t*, std::vector<PurseObj_t*>, CompFPS> pq;
     for(int i = 0 ; i < N ; i++) {
         Vec_IntWriteEntry(vPoIds, 0, i);
         pNtk = Abc_NtkDup(orgNtk);
@@ -75,14 +79,19 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         objs[i].ntk = (void *)pNtk;
         PurseDataInit(&pdata[i]);
         objs[i].pData = &pdata[i];
-        Vec_PtrWriteEntry(Lp, i, &objs[i]);
+        // Vec_PtrWriteEntry(Lp, i, &objs[i]);
+        pq.push(&objs[i]);
     }
-
+#ifdef PURSE_DEBUG
     abctime clkTotal = Abc_Clock();
+#endif
+
     abctime nTimeToStop = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock() : 0;
     abctime clk, clkRun, clkBudget = CLOCKS_PER_SEC, clkRem = pPars->nTimeOut * CLOCKS_PER_SEC;
 
+#ifdef PURSE_DEBUG
     int conflictBudget = 1<<10;
+#endif
 
     int nSat = 0, nUnsat = 0;
     int minFrame = ABC_INFINITY, maxFrame = -ABC_INFINITY;
@@ -91,50 +100,22 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
     int j = 0;
     
     while (1) {
-
-        #ifdef DEBUG_PURSE
-        #endif
-        
-        if (pPars->fVerbose) {
-            printf("\nIteration: %d\n", j);
-            printf("Params: TimeOut = %d.\n",(int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC);
-            PrintStat (Lp, stdout);
-        }
-
-        minClk = ABC_INFINITY;
-        maxClk = -1;
-        minFrame = ABC_INFINITY;
-        maxFrame = -1;
-        for (int i = 0 ; i < N ; i++)  {
-            minClk = minClk < objs[i].pData->nClk ? minClk : objs[i].pData->nClk;
-            maxClk = maxClk > objs[i].pData->nClk ? maxClk : objs[i].pData->nClk;
-            minFrame = Abc_MinInt(minFrame, (int)(objs[i].pData->nFrame));
-            maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
-        }
-#ifdef DEBUG_PURSE
-        printf("\r%d SAT, %d UNSAT, %d UNDECIDED, ", nSat, nUnsat, N-nSat-nUnsat);
-        printf("iteration %d, ", j);
-        printf("timeLimit %d sec., conflictLimt %d, ", (int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC, conflictBudget);
-        printf("minFrame %d, maxFrame %d, ", minFrame, maxFrame);
-        printf("minTime %9.2f sec., maxTime %9.2f sec., ", (float)minClk/(float)CLOCKS_PER_SEC, (float)maxClk/(float)CLOCKS_PER_SEC);
-        printf("completed %9.2f sec.", (float)(Abc_Clock() - clkTotal) / (float)CLOCKS_PER_SEC);
-#endif
-
-        PurseObj_t *obj = (PurseObj_t *)Vec_PtrEntry(Lp, 0);
-        pNtk = (Abc_Ntk_t *)(obj->ntk);
+        PurseObj_t* best = pq.top();
+        pq.pop();
+        pNtk = (Abc_Ntk_t *)(best->ntk);
 
 #ifdef DEBUG_PURSE
-        printf(" prop: %d ", obj->propNum);
+        printf(" prop: %d \n", best->propNum);
 #endif
 
-        abctime clkDiff = maxClk - obj->pData->nClk;
-        clkBudget = clkDiff > clkBudget ? clkDiff : clkBudget;
+        abctime clkDiff = maxClk - best->pData->nClk;
+        clkBudget = clkDiff > clkBudget ? clkDiff : minClk == maxClk ? 2*clkBudget : clkBudget;
         
         clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
         
             
-        pBmcPars->nStart = obj->pData->nFrame;
-        pBmcPars->pData->propNum = obj->propNum; // Just to Debug ,TODO: Remove
+        pBmcPars->nStart = best->pData->nFrame;
+        pBmcPars->pData->propNum = best->propNum; // Just to Debug ,TODO: Remove
         // pBmcPars->nStart = 0;
         pBmcPars->nTimeOut = (int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC;
         // pBmcPars->nConfLimit = conflictBudget;
@@ -148,21 +129,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         // PrintMem("After BMC");
         clkRun = Abc_Clock() - clk;
         
-        if (status == ABC_SAT) {
-            obj->status = PURSE_SAT;
-            nSat++;
-            Vec_PtrDrop(Lp, 0);
-        } else if (status == ABC_UNSAT) {
-            obj->status = PURSE_UNSAT;
-            nUnsat++;
-            Vec_PtrDrop(Lp, 0);
-        } else if (status == ABC_UNDEC) {
-            // Vec_PtrPush( unk_goals, obj);
-        } else {
-            goto finish;
-        }
-
-        obj->pData->nFrame += pBmcPars->pData->nFrame;
+        best->pData->nFrame += pBmcPars->pData->nFrame;
         // obj->pData->nSat += pBmcPars->pData->nSat;
         // obj->pData->nLearnt = pBmcPars->pData->nLearnt;
         // obj->pData->nDecisions = pBmcPars->pData->nDecisions;
@@ -170,9 +137,46 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         // obj->pData->nConflicts = pBmcPars->pData->nConflicts;
         // obj->pData->nPropagations = pBmcPars->pData->nPropagations;
         // obj->pData->score = pBmcPars->pData->nClause == 0 ? INF : obj->pData->score + 1.0 * pBmcPars->pData->nLearnt / pBmcPars->pData->nClause;
-        obj->pData->nClk += clkRun;
+        best->pData->nClk += clkBudget;
         clkRem -= clkRun;
+        
+        if (status == ABC_SAT) {
+            best->status = PURSE_SAT;
+            nSat++;
+            // Vec_PtrDrop(Lp, 0);
+        } else if (status == ABC_UNSAT) {
+            best->status = PURSE_UNSAT;
+            nUnsat++;
+            // Vec_PtrDrop(Lp, 0);
+        } else if (status == ABC_UNDEC) {
+            // Vec_PtrPush( unk_goals, obj);
+            pq.push(best);
+        } else {
+            goto finish;
+        }
 
+
+
+        minClk = ABC_INFINITY;
+        maxClk = -1;
+        minFrame = ABC_INFINITY;
+        maxFrame = -1;
+        for (int i = 0 ; i < N ; i++)  {
+            if (objs[i].status == PURSE_UNDEC) {
+                minClk = minClk < objs[i].pData->nClk ? minClk : objs[i].pData->nClk;
+                maxClk = maxClk > objs[i].pData->nClk ? maxClk : objs[i].pData->nClk;
+            }
+            minFrame = Abc_MinInt(minFrame, (int)(objs[i].pData->nFrame));
+            maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
+        }
+#ifdef DEBUG_PURSE
+        printf("\r%d SAT, %d UNSAT, %d UNDECIDED, ", nSat, nUnsat, N-nSat-nUnsat);
+        printf("iteration %d, ", j);
+        printf("timeLimit %d sec., conflictLimt %d, ", (int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC, conflictBudget);
+        printf("minFrame %d, maxFrame %d, ", minFrame, maxFrame);
+        printf("minTime %9.2f sec., maxTime %9.2f sec., ", (float)minClk/(float)CLOCKS_PER_SEC, (float)maxClk/(float)CLOCKS_PER_SEC);
+        printf("completed %9.2f sec.", (float)(Abc_Clock() - clkTotal) / (float)CLOCKS_PER_SEC);
+#endif
             
         if ( nTimeToStop && Abc_Clock() > nTimeToStop )
             break;
@@ -181,27 +185,27 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         j++;
 
 
-        if ( Lp->nSize == 0 ) break;
+        if ( pq.empty() ) break;
         if ( nTimeToStop && Abc_Clock() > nTimeToStop ) break;
         if (clkBudget <= 0) break;
     
-        Vec_PtrSort(Lp, comparator);
+        // Vec_PtrSort(Lp, comparator);
     }
 
-    Vec_PtrFree(Lp);
-    Lp = Vec_PtrStart(N);
+    // Vec_PtrFree(Lp);
+    // Lp = Vec_PtrStart(N);
     minClk = ABC_INFINITY;
     maxClk = -1;
     minFrame = ABC_INFINITY;
     maxFrame = -1;
     for (int i = 0 ; i < N ; i++)  {
-        Vec_PtrWriteEntry(Lp, i, &objs[i]);
+        // Vec_PtrWriteEntry(Lp, i, &objs[i]);
         minClk = minClk < objs[i].pData->nClk ? minClk : objs[i].pData->nClk;
         maxClk = maxClk > objs[i].pData->nClk ? maxClk : objs[i].pData->nClk;
         minFrame = Abc_MinInt(minFrame, (int)(objs[i].pData->nFrame));
         maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
     }
-    Vec_PtrSort(Lp, comparator);
+    // Vec_PtrSort(Lp, comparator);
     // printf("\nfinally:\n");
     // PrintStat(Lp, stdout);
     printf("\n\n");
@@ -220,7 +224,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
     free(objs);
     free(pdata);
     Vec_IntFree(vPoIds);
-    Vec_PtrFree(Lp);
+    // Vec_PtrFree(Lp);
 
     return ;
 }
