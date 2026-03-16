@@ -1,9 +1,9 @@
-#ifndef PURSE 
-#define PURSE
+#ifndef POEM 
+#define POEM
 
-#define PURSE_SAT 1
-#define PURSE_UNSAT -1
-#define PURSE_UNDEC 0
+#define POEM_SAT 1
+#define POEM_UNSAT -1
+#define POEM_UNDEC 0
 
 #define ABC_SAT 0
 #define ABC_UNSAT 1
@@ -15,7 +15,7 @@
 #define INF 1e9
 #define EPS 1e-9
 
-// #define DEBUG_PURSE 1
+// #define DEBUG_POEM 1
 
 #include "misc/vec/vec.h"
 #include "misc/util/abc_global.h"
@@ -26,7 +26,7 @@ ABC_NAMESPACE_HEADER_START
 typedef struct {
     int nTimeOut;
     int fVerbose;
-} PursePar_t;
+} PoemPar_t;
 
 typedef struct {
     unsigned int nSat;
@@ -39,23 +39,23 @@ typedef struct {
     int propNum;
     abctime nClk;
     double score;
-} PurseData_t;
+} PoemData_t;
 
 
 typedef struct {
-    PurseData_t *pData;
+    PoemData_t *pData;
     void *ntk;
     int status;
     int propNum;
-} PurseObj_t;
+} PoemObj_t;
 
 extern int CompLearnt(const void *a, const void *b);
 extern int CompScore(const void *a, const void *b);
 extern int CompFrame(const void *a, const void *b);
 
-extern void PurseDataInit ( PurseData_t *pData);
+extern void PoemDataInit ( PoemData_t *pData);
 
-extern void ParPurseSetDefaultParams ( PursePar_t *pPars);
+extern void ParPoemSetDefaultParams ( PoemPar_t *pPars);
 
 extern void PrintStat( Vec_Ptr_t *objs, FILE *fp);
 

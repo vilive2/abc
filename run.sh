@@ -1,6 +1,6 @@
 #!/bin/bash
 
-design_dir=""
+design_dir="/home/vivek/designs/multi"
 output_dir=""
 selected_file="selected_designs.txt"  # File containing list of designs
 log_file="$output_dir/execution_$(date +%Y%m%d_%H%M%S).log"  # Fixed date format

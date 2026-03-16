@@ -1,17 +1,17 @@
 #include "base/main/mainInt.h"
-#include "purse.h"
+#include "poem.h"
 
 ABC_NAMESPACE_HEADER_START
 
-extern void Purse_Init(Abc_Frame_t *pAbc);
+extern void Poem_Init(Abc_Frame_t *pAbc);
 
 ABC_NAMESPACE_HEADER_END
 
-static int Abc_CommandPurse( Abc_Frame_t * pAbc, int argc, char ** argv );
+static int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv );
 
-void Purse_Init(Abc_Frame_t *pAbc)
+void Poem_Init(Abc_Frame_t *pAbc)
 {
-    Cmd_CommandAdd( pAbc, "Verification", "purse",         Abc_CommandPurse,            1 );
+    Cmd_CommandAdd( pAbc, "Verification", "poem",         Abc_CommandPoem,            1 );
 }
 
 
@@ -26,13 +26,13 @@ void Purse_Init(Abc_Frame_t *pAbc)
   SeeAlso     []
 
 ***********************************************************************/
-int Abc_CommandPurse( Abc_Frame_t * pAbc, int argc, char ** argv )
+int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
 {
-    extern void PurseMultiPropertyVerification( Abc_Ntk_t * pNtk, PursePar_t * pPars );
-    PursePar_t Pars, * pPars = &Pars;
+    extern void PoemMultiPropertyVerification( Abc_Ntk_t * pNtk, PoemPar_t * pPars );
+    PoemPar_t Pars, * pPars = &Pars;
     Abc_Ntk_t * pNtk = Abc_FrameReadNtk(pAbc);
     int c;
-    ParPurseSetDefaultParams( pPars );
+    ParPoemSetDefaultParams( pPars );
     Extra_UtilGetoptReset();
     while ( ( c = Extra_UtilGetopt( argc, argv, "TLvVh" ) ) != EOF )
     {
@@ -84,12 +84,12 @@ int Abc_CommandPurse( Abc_Frame_t * pAbc, int argc, char ** argv )
         return 0;
     }
     
-    PurseMultiPropertyVerification(pNtk, pPars);
+    PoemMultiPropertyVerification(pNtk, pPars);
 
     return 0;
 
 usage:
-    Abc_Print( -2, "usage: purse [-T num] [-vh]\n" );
+    Abc_Print( -2, "usage: poem [-T num] [-vh]\n" );
     Abc_Print( -2, "\t         performs bounded model checking with dynamic unrolling\n" );
     Abc_Print( -2, "\t-T num : runtime limit, in seconds [default = %d]\n",                       pPars->nTimeOut );
     Abc_Print( -2, "\t-v     : toggle verbose [default = %s]\n",                           pPars->fVerbose? "yes": "no" );

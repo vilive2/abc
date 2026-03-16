@@ -4,7 +4,7 @@
 #include "misc/vec/vec.h"
 #include "misc/util/abc_global.h"
 #include "sat/bmc/bmc.h"
-#include "purse.h"
+#include "poem.h"
 #include "comp.h"
 #include <sys/resource.h>
 #include <queue>
@@ -24,13 +24,13 @@ static inline void PrintMem(const char *tag)
     printf("[MEM] %s: RSS = %.2f MB\n", tag, r.ru_maxrss / 1024.0);
 }
 
-void ParPurseSetDefaultParams ( PursePar_t *pPars) {
+void ParPoemSetDefaultParams ( PoemPar_t *pPars) {
     assert (pPars != NULL);
     pPars->nTimeOut = ABC_INT_MAX;
     pPars->fVerbose = 0;
 }
 
-void PurseDataInit ( PurseData_t *pData) {
+void PoemDataInit ( PoemData_t *pData) {
     assert (pData != NULL);
     pData->nSat = 0;
     pData->nFrame = 0;
@@ -43,7 +43,7 @@ void PurseDataInit ( PurseData_t *pData) {
     pData->nClk = 0;
 }
 
-void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
+void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
     // int (*comparator)(const void *, const void *);
     // comparator = CompLearnt;
@@ -55,7 +55,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
     Saig_ParBmc_t Pars, * pBmcPars = &Pars;
     int fOrDecomp = 0;
     Saig_ParBmcSetDefaultParams( pBmcPars );
-    PurseData_t pData;
+    PoemData_t pData;
     pBmcPars->pData = &pData;
     pBmcPars->fUseGlucose = 1;
     pBmcPars->fSilent = 1;
@@ -65,31 +65,31 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
 
     int N = Abc_NtkPoNum(orgNtk);
 
-    PurseObj_t *objs = ABC_ALLOC(PurseObj_t, N);
-    PurseData_t *pdata = ABC_ALLOC(PurseData_t, N);
+    PoemObj_t *objs = ABC_ALLOC(PoemObj_t, N);
+    PoemData_t *pdata = ABC_ALLOC(PoemData_t, N);
     // Vec_Ptr_t *Lp = Vec_PtrStart(N);
-    std::priority_queue<PurseObj_t*, std::vector<PurseObj_t*>, CompFPS> pq;
+    std::priority_queue<PoemObj_t*, std::vector<PoemObj_t*>, CompFPS> pq;
     for(int i = 0 ; i < N ; i++) {
         Vec_IntWriteEntry(vPoIds, 0, i);
         pNtk = Abc_NtkDup(orgNtk);
         pNtk = Abc_NtkSelectPos( pNtk, vPoIds);
 
-        objs[i].status = PURSE_UNDEC;
+        objs[i].status = POEM_UNDEC;
         objs[i].propNum = i;
         objs[i].ntk = (void *)pNtk;
-        PurseDataInit(&pdata[i]);
+        PoemDataInit(&pdata[i]);
         objs[i].pData = &pdata[i];
         // Vec_PtrWriteEntry(Lp, i, &objs[i]);
         pq.push(&objs[i]);
     }
-#ifdef PURSE_DEBUG
+#ifdef POEM_DEBUG
     abctime clkTotal = Abc_Clock();
 #endif
 
     abctime nTimeToStop = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock() : 0;
     abctime clk, clkRun, clkBudget = CLOCKS_PER_SEC, clkRem = pPars->nTimeOut * CLOCKS_PER_SEC;
 
-#ifdef PURSE_DEBUG
+#ifdef POEM_DEBUG
     int conflictBudget = 1<<10;
 #endif
 
@@ -100,11 +100,11 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
     int j = 0;
     
     while (1) {
-        PurseObj_t* best = pq.top();
+        PoemObj_t* best = pq.top();
         pq.pop();
         pNtk = (Abc_Ntk_t *)(best->ntk);
 
-#ifdef DEBUG_PURSE
+#ifdef DEBUG_POEM
         printf(" prop: %d \n", best->propNum);
 #endif
 
@@ -121,7 +121,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         // pBmcPars->nConfLimit = conflictBudget;
         pBmcPars->fSilent = 1;
         pBmcPars->iFrame = -1;
-        PurseDataInit (pBmcPars->pData);
+        PoemDataInit (pBmcPars->pData);
             
             
         clk = Abc_Clock();
@@ -141,11 +141,11 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         clkRem -= clkRun;
         
         if (status == ABC_SAT) {
-            best->status = PURSE_SAT;
+            best->status = POEM_SAT;
             nSat++;
             // Vec_PtrDrop(Lp, 0);
         } else if (status == ABC_UNSAT) {
-            best->status = PURSE_UNSAT;
+            best->status = POEM_UNSAT;
             nUnsat++;
             // Vec_PtrDrop(Lp, 0);
         } else if (status == ABC_UNDEC) {
@@ -162,14 +162,14 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
         minFrame = ABC_INFINITY;
         maxFrame = -1;
         for (int i = 0 ; i < N ; i++)  {
-            if (objs[i].status == PURSE_UNDEC) {
+            if (objs[i].status == POEM_UNDEC) {
                 minClk = minClk < objs[i].pData->nClk ? minClk : objs[i].pData->nClk;
                 maxClk = maxClk > objs[i].pData->nClk ? maxClk : objs[i].pData->nClk;
             }
             minFrame = Abc_MinInt(minFrame, (int)(objs[i].pData->nFrame));
             maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
         }
-#ifdef DEBUG_PURSE
+#ifdef DEBUG_POEM
         printf("\r%d SAT, %d UNSAT, %d UNDECIDED, ", nSat, nUnsat, N-nSat-nUnsat);
         printf("iteration %d, ", j);
         printf("timeLimit %d sec., conflictLimt %d, ", (int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC, conflictBudget);
@@ -216,7 +216,7 @@ void PurseMultiPropertyVerification( Abc_Ntk_t *pNtk, PursePar_t * pPars) {
 
     finish:
     // for(int i = 0 ; i < N ; i++) {
-    //     PurseObj_t *obj = &objs[i];
+    //     PoemObj_t *obj = &objs[i];
     //     pNtk = obj->ntk;
     //     Abc_NtkDelete(pNtk);
     // }

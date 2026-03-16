@@ -1,14 +1,14 @@
 #ifndef COMP_H
 #define COMP_H
 
-#include "purse.h"
+#include "poem.h"
 #include <assert.h>
 #include <stddef.h>
 #include <math.h>
 
 int CompLearnt (const void *a, const void *b) {
-    const PurseObj_t *obja = *(const PurseObj_t **)a;
-    const PurseObj_t *objb = *(const PurseObj_t **)b;
+    const PoemObj_t *obja = *(const PoemObj_t **)a;
+    const PoemObj_t *objb = *(const PoemObj_t **)b;
     assert (obja != NULL);
     assert (objb != NULL);
     assert (obja->pData != NULL);
@@ -22,8 +22,8 @@ int CompLearnt (const void *a, const void *b) {
 }
 
 int CompScore (const void *a, const void *b) {
-    const PurseObj_t *obja = *(const PurseObj_t **)a;
-    const PurseObj_t *objb = *(const PurseObj_t **)b;
+    const PoemObj_t *obja = *(const PoemObj_t **)a;
+    const PoemObj_t *objb = *(const PoemObj_t **)b;
     assert (obja != NULL);
     assert (objb != NULL);
     assert (obja->pData != NULL);
@@ -38,8 +38,8 @@ int CompScore (const void *a, const void *b) {
 }
 
 int CompFrame (const void *a, const void *b) {
-    const PurseObj_t *obja = *(const PurseObj_t **)a;
-    const PurseObj_t *objb = *(const PurseObj_t **)b;
+    const PoemObj_t *obja = *(const PoemObj_t **)a;
+    const PoemObj_t *objb = *(const PoemObj_t **)b;
     assert (obja != NULL);
     assert (objb != NULL);
     assert (obja->pData != NULL);
@@ -55,8 +55,8 @@ int CompFrame (const void *a, const void *b) {
 
 
 // int CompFPS (const void *a, const void *b) {
-//     const PurseObj_t *obja = *(const PurseObj_t **)a;
-//     const PurseObj_t *objb = *(const PurseObj_t **)b;
+//     const PoemObj_t *obja = *(const PoemObj_t **)a;
+//     const PoemObj_t *objb = *(const PoemObj_t **)b;
 //     assert (obja != NULL);
 //     assert (objb != NULL);
 //     assert (obja->pData != NULL);
@@ -80,7 +80,7 @@ int CompFrame (const void *a, const void *b) {
 // }
 
 struct CompFPS {
-    bool operator()(const PurseObj_t* a, const PurseObj_t* b) const {
+    bool operator()(const PoemObj_t* a, const PoemObj_t* b) const {
         long long v1 = (long long)a->pData->nFrame * b->pData->nClk;
         long long v2 = (long long)b->pData->nFrame * a->pData->nClk;
 

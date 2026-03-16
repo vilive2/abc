@@ -28,7 +28,7 @@
 
 #include "aig/saig/saig.h"
 #include "aig/gia/gia.h"
-#include "sat/purse/purse.h"
+#include "sat/poem/poem.h"
 
 ////////////////////////////////////////////////////////////////////////
 ///                         PARAMETERS                               ///
@@ -134,7 +134,7 @@ struct Saig_ParBmc_t_
     char *      pLogFileName;   // log file name
     int         fSilent;        // completely silent
     int         iFrame;         // explored up to this frame
-    PurseData_t *pData;         // Purse stat
+    PoemData_t *pData;         // Poem stat
     int         nFailOuts;      // the number of failed outputs
     int         nDropOuts;      // the number of dropped outputs
     abctime     timeLastSolved; // the time when the last output was solved
