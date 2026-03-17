@@ -91,4 +91,10 @@ struct CompFPS {
     }
 };
 
+struct CompNtkSize {
+    bool operator()(const PoemObj_t* a, const PoemObj_t* b) const {
+        return a->ntkSize < b->ntkSize;
+    }
+};
+
 #endif

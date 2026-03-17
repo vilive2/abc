@@ -64,7 +64,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     
     # Run the command and capture any signals/errors
     {
-        ~/abc/abc -c "read $filename; bmc3 -a -g -T 3600" 
+        # ~/abc/abc -c "read $filename; bmc3 -a -g -T 3600" 
+        ~/abc/abc -c "read $filename; poem -T 3600"
     } > "$output_dir/$output_file" 2>&1
     
     # Check the exit status

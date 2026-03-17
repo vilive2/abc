@@ -26,6 +26,7 @@ ABC_NAMESPACE_HEADER_START
 typedef struct {
     int nTimeOut;
     int fVerbose;
+    int staticOrdering;
 } PoemPar_t;
 
 typedef struct {
@@ -45,6 +46,7 @@ typedef struct {
 typedef struct {
     PoemData_t *pData;
     void *ntk;
+    unsigned int ntkSize;
     int status;
     int propNum;
 } PoemObj_t;

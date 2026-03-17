@@ -29,12 +29,13 @@ void Poem_Init(Abc_Frame_t *pAbc)
 int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
 {
     extern void PoemMultiPropertyVerification( Abc_Ntk_t * pNtk, PoemPar_t * pPars );
+    extern void SequentialMultiPropertyVerification (Abc_Ntk_t * pNtk, PoemPar_t * pPars );
     PoemPar_t Pars, * pPars = &Pars;
     Abc_Ntk_t * pNtk = Abc_FrameReadNtk(pAbc);
     int c;
     ParPoemSetDefaultParams( pPars );
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "TLvVh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "TLsvVh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -48,6 +49,9 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
             globalUtilOptind++;
             if ( pPars->nTimeOut < 0 )
                 goto usage;
+            break;
+        case 's':
+            pPars->staticOrdering = 1;
             break;
         case 'v':
             pPars->fVerbose ^= 1;
@@ -84,15 +88,19 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
         return 0;
     }
     
-    PoemMultiPropertyVerification(pNtk, pPars);
+    if (pPars->staticOrdering) 
+        SequentialMultiPropertyVerification (pNtk, pPars);
+    else
+        PoemMultiPropertyVerification(pNtk, pPars);
 
     return 0;
 
 usage:
-    Abc_Print( -2, "usage: poem [-T num] [-vh]\n" );
+    Abc_Print( -2, "usage: poem [-T num] [-vsh]\n" );
     Abc_Print( -2, "\t         performs bounded model checking with dynamic unrolling\n" );
     Abc_Print( -2, "\t-T num : runtime limit, in seconds [default = %d]\n",                       pPars->nTimeOut );
     Abc_Print( -2, "\t-v     : toggle verbose [default = %s]\n",                           pPars->fVerbose? "yes": "no" );
     Abc_Print( -2, "\t-h     : print the command usage\n");
+    Abc_Print( -2, "\t-s     : static ordering\n");
     return 1;
 }
