@@ -297,7 +297,7 @@ void SequentialMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
         pBmcPars->nStart = 0;
         pBmcPars->pData->propNum = best->propNum; // Just to Debug ,TODO: Remove
-        pBmcPars->nTimeOut = (int)(clkRem + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC;
+        pBmcPars->nTimeOut = (0LL + clkRem + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
         pBmcPars->fSilent = 1;
         pBmcPars->iFrame = -1;
         PoemDataInit (pBmcPars->pData);
