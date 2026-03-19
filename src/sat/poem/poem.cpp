@@ -19,6 +19,8 @@ extern Abc_Ntk_t * Abc_NtkDarLatchSweep( Abc_Ntk_t * pNtk, int fLatchConst, int 
 
 ABC_NAMESPACE_HEADER_END
 
+extern void print_stat(std::vector<PoemObj_t*> &props);
+
 static inline void PrintMem(const char *tag)
 {
     struct rusage r;
@@ -329,21 +331,7 @@ void SequentialMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         j++;
     }
 
-    minClk = ABC_INFINITY;
-    maxClk = -1;
-    minFrame = ABC_INFINITY;
-    maxFrame = -1;
-    for (int i = 0 ; i < N ; i++)  {
-        minClk = minClk < objs[i].pData->nClk ? minClk : objs[i].pData->nClk;
-        maxClk = maxClk > objs[i].pData->nClk ? maxClk : objs[i].pData->nClk;
-        minFrame = Abc_MinInt(minFrame, (int)(objs[i].pData->nFrame));
-        maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
-    }
-    printf("\n\n");
-    printf("%d SAT, %d UNSAT, %d UNDECIDED\n", nSat, nUnsat, N-nSat-nUnsat);
-    printf("minFrame %d, maxFrame %d\n", minFrame, maxFrame);
-    printf("minTime %9.2f sec., maxTime %9.2f sec.\n", (float)minClk/(float)CLOCKS_PER_SEC, (float)maxClk/(float)CLOCKS_PER_SEC);
-    
+    print_stat(props);
 
     finish:
     // for(int i = 0 ; i < N ; i++) {
