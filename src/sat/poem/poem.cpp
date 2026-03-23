@@ -74,10 +74,20 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     PoemData_t *pdata = ABC_ALLOC(PoemData_t, N);
     // Vec_Ptr_t *Lp = Vec_PtrStart(N);
     std::priority_queue<PoemObj_t*, std::vector<PoemObj_t*>, CompFPS> pq;
+    std::vector<PoemObj_t*> props;
     for(int i = 0 ; i < N ; i++) {
         Vec_IntWriteEntry(vPoIds, 0, i);
         pNtk = Abc_NtkDup(orgNtk);
         pNtk = Abc_NtkSelectPos( pNtk, vPoIds);
+        int fLatchConst  =   1;
+        int fLatchEqual  =   1;
+        int fSaveNames   =   1;
+        int fUseMvSweep  =   0;
+        int nFramesSymb  =   1;
+        int nFramesSatur = 512;
+        int fVerbose     =   0;
+        int fVeryVerbose =   0;
+        pNtk = Abc_NtkDarLatchSweep( pNtk, fLatchConst, fLatchEqual, fSaveNames, fUseMvSweep, nFramesSymb, nFramesSatur, fVerbose, fVeryVerbose );
 
         objs[i].status = POEM_UNDEC;
         objs[i].propNum = i;
@@ -86,17 +96,12 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         objs[i].pData = &pdata[i];
         // Vec_PtrWriteEntry(Lp, i, &objs[i]);
         pq.push(&objs[i]);
+        props.push_back(&objs[i]);
     }
-#ifdef POEM_DEBUG
-    abctime clkTotal = Abc_Clock();
-#endif
 
+    abctime clkTotal = Abc_Clock();
     abctime nTimeToStop = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock() : 0;
     abctime clk, clkRun, clkBudget = CLOCKS_PER_SEC, clkRem = pPars->nTimeOut * CLOCKS_PER_SEC;
-
-#ifdef POEM_DEBUG
-    int conflictBudget = 1<<10;
-#endif
 
     int nSat = 0, nUnsat = 0;
     int minFrame = ABC_INFINITY, maxFrame = -ABC_INFINITY;
@@ -109,12 +114,13 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         pq.pop();
         pNtk = (Abc_Ntk_t *)(best->ntk);
 
-#ifdef DEBUG_POEM
-        printf(" prop: %d \n", best->propNum);
-#endif
+        if (pPars->fVerbose) {
+            printf(" prop: %d \n", best->propNum);
+        }
+
 
         abctime clkDiff = maxClk - best->pData->nClk;
-        clkBudget = clkDiff > clkBudget ? clkDiff : minClk == maxClk ? 2*clkBudget : clkBudget;
+        clkBudget = clkDiff > clkBudget ? clkDiff : maxClk - minClk < clkBudget ? 2*clkBudget : clkBudget;
         
         clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
         
@@ -122,7 +128,7 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         pBmcPars->nStart = best->pData->nFrame;
         pBmcPars->pData->propNum = best->propNum; // Just to Debug ,TODO: Remove
         // pBmcPars->nStart = 0;
-        pBmcPars->nTimeOut = (int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC;
+        pBmcPars->nTimeOut = (0LL + clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
         // pBmcPars->nConfLimit = conflictBudget;
         pBmcPars->fSilent = 1;
         pBmcPars->iFrame = -1;
@@ -142,7 +148,7 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         // obj->pData->nConflicts = pBmcPars->pData->nConflicts;
         // obj->pData->nPropagations = pBmcPars->pData->nPropagations;
         // obj->pData->score = pBmcPars->pData->nClause == 0 ? INF : obj->pData->score + 1.0 * pBmcPars->pData->nLearnt / pBmcPars->pData->nClause;
-        best->pData->nClk += clkBudget;
+        best->pData->nClk += clkRun;
         clkRem -= clkRun;
         
         if (status == ABC_SAT) {
@@ -174,14 +180,15 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
             minFrame = Abc_MinInt(minFrame, (int)(objs[i].pData->nFrame));
             maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
         }
-#ifdef DEBUG_POEM
-        printf("\r%d SAT, %d UNSAT, %d UNDECIDED, ", nSat, nUnsat, N-nSat-nUnsat);
-        printf("iteration %d, ", j);
-        printf("timeLimit %d sec., conflictLimt %d, ", (int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC, conflictBudget);
-        printf("minFrame %d, maxFrame %d, ", minFrame, maxFrame);
-        printf("minTime %9.2f sec., maxTime %9.2f sec., ", (float)minClk/(float)CLOCKS_PER_SEC, (float)maxClk/(float)CLOCKS_PER_SEC);
-        printf("completed %9.2f sec.", (float)(Abc_Clock() - clkTotal) / (float)CLOCKS_PER_SEC);
-#endif
+
+        if (pPars->fVerbose) {
+            printf("\r%d SAT, %d UNSAT, %d UNDECIDED, ", nSat, nUnsat, N-nSat-nUnsat);
+            printf("iteration %d, ", j);
+            printf("timeLimit %d sec., ", (0LL + clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC);
+            printf("minFrame %d, maxFrame %d, ", minFrame, maxFrame);
+            printf("minTime %9.2f sec., maxTime %9.2f sec., ", (float)minClk/(float)CLOCKS_PER_SEC, (float)maxClk/(float)CLOCKS_PER_SEC);
+            printf("completed %9.2f sec.", (float)(Abc_Clock() - clkTotal) / (float)CLOCKS_PER_SEC);
+        }
             
         if ( nTimeToStop && Abc_Clock() > nTimeToStop )
             break;
@@ -197,35 +204,15 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         // Vec_PtrSort(Lp, comparator);
     }
 
-    // Vec_PtrFree(Lp);
-    // Lp = Vec_PtrStart(N);
-    minClk = ABC_INFINITY;
-    maxClk = -1;
-    minFrame = ABC_INFINITY;
-    maxFrame = -1;
-    for (int i = 0 ; i < N ; i++)  {
-        // Vec_PtrWriteEntry(Lp, i, &objs[i]);
-        minClk = minClk < objs[i].pData->nClk ? minClk : objs[i].pData->nClk;
-        maxClk = maxClk > objs[i].pData->nClk ? maxClk : objs[i].pData->nClk;
-        minFrame = Abc_MinInt(minFrame, (int)(objs[i].pData->nFrame));
-        maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
-    }
-    // Vec_PtrSort(Lp, comparator);
-    // printf("\nfinally:\n");
-    // PrintStat(Lp, stdout);
-    printf("\n\n");
-    printf("%d SAT, %d UNSAT, %d UNDECIDED\n", nSat, nUnsat, N-nSat-nUnsat);
-    printf("minFrame %d, maxFrame %d\n", minFrame, maxFrame);
-    printf("minTime %9.2f sec., maxTime %9.2f sec.\n", (float)minClk/(float)CLOCKS_PER_SEC, (float)maxClk/(float)CLOCKS_PER_SEC);
-    
+    print_stat (props);
 
     finish:
-    // for(int i = 0 ; i < N ; i++) {
-    //     PoemObj_t *obj = &objs[i];
-    //     pNtk = obj->ntk;
-    //     Abc_NtkDelete(pNtk);
-    // }
-    // Abc_NtkDelete(orgNtk);
+    for(int i = 0 ; i < N ; i++) {
+        PoemObj_t *obj = &objs[i];
+        pNtk = (Abc_Ntk_t *)obj->ntk;
+        Abc_NtkDelete(pNtk);
+    }
+    Abc_NtkDelete(orgNtk);
     free(objs);
     free(pdata);
     Vec_IntFree(vPoIds);
@@ -296,12 +283,9 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         
         Vec_Ptr_t *unk_goals = Vec_PtrAlloc( Vec_PtrSize(Lp) );
         
-        #ifdef DEBUG_POEM
-        #endif
-        
         if (pPars->fVerbose) {
             printf("\nIteration: %d\n", j);
-            printf("Params: TimeOut = %d.\n",(int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC);
+            printf("Params: TimeOut = %d.\n",(0LL + clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC);
             print_stat (props);
         }
 
@@ -330,7 +314,7 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
             
             pBmcPars->nStart = obj->pData->nFrame;
             // pBmcPars->nStart = 0;
-            pBmcPars->nTimeOut = (int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC;
+            pBmcPars->nTimeOut = (0LL + clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
             pBmcPars->fSilent = 1;
             pBmcPars->iFrame = -1;
             PoemDataInit (pBmcPars->pData);
@@ -461,9 +445,9 @@ void SequentialMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         PoemObj_t* best = props[j];
         pNtk = (Abc_Ntk_t *)(best->ntk);
 
-#ifdef DEBUG_POEM
-        printf(" prop: %d \n", best->propNum);
-#endif
+        if (pPars->fVerbose) {
+            printf(" prop: %d \n", best->propNum);
+        }
 
         pBmcPars->nStart = 0;
         pBmcPars->pData->propNum = best->propNum; // Just to Debug ,TODO: Remove
