@@ -234,6 +234,174 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     return ;
 }
 
+void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
+    extern int Abc_NtkDarBmc3( Abc_Ntk_t * pNtk, Saig_ParBmc_t * pPars, int fOrDecomp );
+    extern Abc_Ntk_t * Abc_NtkSelectPos( Abc_Ntk_t * pNtkInit, Vec_Int_t * vPoIds );
+
+    int (*comparator)(const void *, const void *);
+    comparator = CompFrame;
+    
+    Vec_Int_t *vPoIds = Vec_IntStart(1); 
+    Saig_ParBmc_t Pars, * pBmcPars = &Pars;
+    int fOrDecomp = 0;
+    Saig_ParBmcSetDefaultParams( pBmcPars );
+    PoemData_t pData;
+    pBmcPars->pData = &pData;
+    pBmcPars->fUseGlucose = 1;
+    pBmcPars->fSilent = 1;
+    Abc_Ntk_t *orgNtk;
+    orgNtk = Abc_NtkDup(pNtk);
+
+    int N = Abc_NtkPoNum(orgNtk);
+
+    PoemObj_t *objs = ABC_ALLOC(PoemObj_t, N);
+    PoemData_t *pdata = ABC_ALLOC(PoemData_t, N);
+    Vec_Ptr_t *Lp = Vec_PtrStart(N);
+    std::vector<PoemObj_t*> props;
+    for(int i = 0 ; i < N ; i++) {
+        Vec_IntWriteEntry(vPoIds, 0, i);
+        pNtk = Abc_NtkDup(orgNtk);
+        pNtk = Abc_NtkSelectPos( pNtk, vPoIds);
+        int fLatchConst  =   1;
+        int fLatchEqual  =   1;
+        int fSaveNames   =   1;
+        int fUseMvSweep  =   0;
+        int nFramesSymb  =   1;
+        int nFramesSatur = 512;
+        int fVerbose     =   0;
+        int fVeryVerbose =   0;
+        pNtk = Abc_NtkDarLatchSweep( pNtk, fLatchConst, fLatchEqual, fSaveNames, fUseMvSweep, nFramesSymb, nFramesSatur, fVerbose, fVeryVerbose );
+
+        objs[i].status = POEM_UNDEC;
+        objs[i].propNum = i;
+        objs[i].ntk = (void *)pNtk;
+        PoemDataInit(&pdata[i]);
+        objs[i].pData = &pdata[i];
+        Vec_PtrWriteEntry(Lp, i, &objs[i]);
+        props.push_back(&objs[i]);
+    }
+
+    abctime clkTotal = Abc_Clock();
+    abctime nTimeToStop = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock() : 0;
+    abctime clk, clkRun, clkBudget = CLOCKS_PER_SEC, clkRem = pPars->nTimeOut * CLOCKS_PER_SEC;
+
+    int nSat = 0, nUnsat = 0;
+    int minFrame = ABC_INFINITY, maxFrame = -ABC_INFINITY;
+    abctime minClk = ABC_INFINITY, maxClk = -ABC_INFINITY;
+
+    int j = 0;
+    
+    while (1) {
+        int solved = 0;
+        
+        Vec_Ptr_t *unk_goals = Vec_PtrAlloc( Vec_PtrSize(Lp) );
+        
+        #ifdef DEBUG_POEM
+        #endif
+        
+        if (pPars->fVerbose) {
+            printf("\nIteration: %d\n", j);
+            printf("Params: TimeOut = %d.\n",(int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC);
+            print_stat (props);
+        }
+
+        minClk = ABC_INFINITY;
+        maxClk = -1;
+        minFrame = ABC_INFINITY;
+        maxFrame = -1;
+        for (int i = 0 ; i < N ; i++)  {
+            minClk = minClk < objs[i].pData->nClk ? minClk : objs[i].pData->nClk;
+            maxClk = maxClk > objs[i].pData->nClk ? maxClk : objs[i].pData->nClk;
+            minFrame = Abc_MinInt(minFrame, (int)(objs[i].pData->nFrame));
+            maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
+        }
+
+        printf("\r%d SAT, %d UNSAT, %d UNDECIDED, ", nSat, nUnsat, N-nSat-nUnsat);
+        printf("minFrame %d, maxFrame %d, ", minFrame, maxFrame);
+        printf("minTime %9.2f sec., maxTime %9.2f sec., ", (float)minClk/(float)CLOCKS_PER_SEC, (float)maxClk/(float)CLOCKS_PER_SEC);
+        printf("completed %9.2f sec.", (float)(Abc_Clock() - clkTotal) / (float)CLOCKS_PER_SEC);
+
+        int idx;
+        PoemObj_t *obj;
+        Vec_PtrForEachEntry( PoemObj_t *, Lp, obj, idx ) {
+
+            
+            pNtk = (Abc_Ntk_t *)(obj->ntk);
+            
+            pBmcPars->nStart = obj->pData->nFrame;
+            // pBmcPars->nStart = 0;
+            pBmcPars->nTimeOut = (int)(clkBudget + CLOCKS_PER_SEC - 1) / (int)CLOCKS_PER_SEC;
+            pBmcPars->fSilent = 1;
+            pBmcPars->iFrame = -1;
+            PoemDataInit (pBmcPars->pData);
+            
+            
+            clk = Abc_Clock();
+            int status = Abc_NtkDarBmc3(pNtk, pBmcPars, fOrDecomp);
+            clkRun = Abc_Clock() - clk;
+
+            if (status == ABC_SAT) {
+                obj->status = POEM_SAT;
+                solved++;
+                nSat++;
+            } else if (status == ABC_UNSAT) {
+                obj->status = POEM_UNSAT;
+                solved++;
+                nUnsat++;
+            } else if (status == ABC_UNDEC) {
+                Vec_PtrPush( unk_goals, obj);
+            } else {
+                Vec_PtrFree(unk_goals);
+                goto finish;
+            }
+
+            obj->pData->nFrame += pBmcPars->pData->nFrame;
+            obj->pData->nClk += clkRun;
+            clkRem -= clkRun;
+
+            clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
+            
+            if ( nTimeToStop && Abc_Clock() > nTimeToStop )
+                break;
+            if (clkBudget <= 0) break;
+        }
+
+        Vec_PtrFree(Lp);
+        Lp = unk_goals;
+        
+        j++;
+
+
+        if ( Lp->nSize == 0 ) break;
+        if ( nTimeToStop && Abc_Clock() > nTimeToStop ) break;
+        if (clkBudget <= 0) break;
+    
+        Vec_PtrSort(Lp, comparator);
+        
+        if (solved == 0) {
+            clkBudget = clkBudget * 2;
+        }
+        clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
+    }
+
+    print_stat(props);
+
+    
+
+    finish:
+    for(int i = 0 ; i < N ; i++) {
+        PoemObj_t *obj = &objs[i];
+        pNtk = (Abc_Ntk_t *)obj->ntk;
+        Abc_NtkDelete(pNtk);
+    }
+    // Abc_NtkDelete(orgNtk);
+    free(objs);
+    free(pdata);
+    Vec_IntFree(vPoIds);
+    Vec_PtrFree(Lp);
+
+    return ;
+}
 
 void SequentialMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
