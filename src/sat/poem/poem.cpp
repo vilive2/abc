@@ -61,34 +61,15 @@ void PoemManInit ( PoemMan *pMan, int N, int nTimeOut, int clkBudget) {
     pMan->clkRem = nTimeOut * CLOCKS_PER_SEC;
 }
 
-void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
-
-    // int (*comparator)(const void *, const void *);
-    // comparator = CompLearnt;
-    // comparator = CompScore;
-    // comparator = CompFrame;
-    // comparator = CompFPS;
-    
+void PoemManSeparatePorperties (PoemMan *pMan, Abc_Ntk_t *orgNtk) {
     Vec_Int_t *vPoIds = Vec_IntStart(1); 
-    Saig_ParBmc_t Pars, * pBmcPars = &Pars;
-    int fOrDecomp = 0;
-    Saig_ParBmcSetDefaultParams( pBmcPars );
-    PoemData_t pData;
-    pBmcPars->pData = &pData;
-    pBmcPars->fUseGlucose = 1;
-    pBmcPars->fSilent = 1;
-    Abc_Ntk_t *orgNtk;
-    orgNtk = Abc_NtkDup(pNtk);
-    // PrintMem("After Abc_NtkDup");
 
-    int N = Abc_NtkPoNum(orgNtk);
+    Abc_Ntk_t *pNtk;
+    pMan->N = Abc_NtkPoNum(orgNtk);
 
-    PoemObj_t *objs = ABC_ALLOC(PoemObj_t, N);
-    PoemData_t *pdata = ABC_ALLOC(PoemData_t, N);
-    // Vec_Ptr_t *Lp = Vec_PtrStart(N);
-    std::priority_queue<PoemObj_t*, std::vector<PoemObj_t*>, CompFPS> pq;
-    std::vector<PoemObj_t*> props;
-    for(int i = 0 ; i < N ; i++) {
+    pMan->objs = ABC_ALLOC(PoemObj_t, pMan->N);
+    pMan->pdata = ABC_ALLOC(PoemData_t, pMan->N);
+    for(int i = 0 ; i < pMan->N ; i++) {
         Vec_IntWriteEntry(vPoIds, 0, i);
         pNtk = Abc_NtkDup(orgNtk);
         pNtk = Abc_NtkSelectPos( pNtk, vPoIds);
@@ -102,17 +83,43 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         int fVeryVerbose =   0;
         pNtk = Abc_NtkDarLatchSweep( pNtk, fLatchConst, fLatchEqual, fSaveNames, fUseMvSweep, nFramesSymb, nFramesSatur, fVerbose, fVeryVerbose );
 
-        objs[i].status = POEM_UNDEC;
-        objs[i].propNum = i;
-        objs[i].ntk = (void *)pNtk;
-        PoemDataInit(&pdata[i]);
-        objs[i].pData = &pdata[i];
-        // Vec_PtrWriteEntry(Lp, i, &objs[i]);
-        pq.push(&objs[i]);
-        props.push_back(&objs[i]);
+        pMan->objs[i].status = POEM_UNDEC;
+        pMan->objs[i].propNum = i;
+        pMan->objs[i].ntk = (void *)pNtk;
+        PoemDataInit(&(pMan->pdata[i]));
+        pMan->objs[i].pData = &(pMan->pdata[i]);
     }
 
+    Vec_IntFree(vPoIds);
+}
+
+void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
+
+    Saig_ParBmc_t Pars, * pBmcPars = &Pars;
+    int fOrDecomp = 0;
+    Saig_ParBmcSetDefaultParams( pBmcPars );
+    PoemData_t pData;
+    pBmcPars->pData = &pData;
+    pBmcPars->fUseGlucose = 1;
+    pBmcPars->fSilent = 1;
+    Abc_Ntk_t *orgNtk;
+    orgNtk = Abc_NtkDup(pNtk);
+    // PrintMem("After Abc_NtkDup");
+
+    int N = Abc_NtkPoNum(orgNtk);
+
     PoemMan pMan;
+
+    PoemManSeparatePorperties (&pMan, orgNtk);
+
+    std::priority_queue<PoemObj_t*, std::vector<PoemObj_t*>, CompFPS> pq;
+    std::vector<PoemObj_t*> props;
+    for(int i = 0 ; i < N ; i++) {
+        pq.push(&(pMan.objs[i]));
+        props.push_back(&(pMan.objs[i]));
+    }
+
+    assert (pPars->nTimeOut > 0);
     PoemManInit (&pMan, N, pPars->nTimeOut, CLOCKS_PER_SEC);
     
     for (;;pMan.it++) {
@@ -181,11 +188,11 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         pMan.minClk = ABC_INFINITY;
         pMan.maxClk = -1;
         for (int i = 0 ; i < N ; i++)  {
-            if (objs[i].status == POEM_UNDEC) {
-                pMan.minClk = std::min(pMan.minClk, objs[i].pData->nClk);
-                pMan.maxClk = std::max(pMan.maxClk, objs[i].pData->nClk);
+            if (props[i]->status == POEM_UNDEC) {
+                pMan.minClk = std::min(pMan.minClk, props[i]->pData->nClk);
+                pMan.maxClk = std::max(pMan.maxClk, props[i]->pData->nClk);
             }
-            pMan.maxFrame = std::max(pMan.maxFrame, (int)(objs[i].pData->nFrame));
+            pMan.maxFrame = std::max(pMan.maxFrame, (int)(props[i]->pData->nFrame));
         }
 
         if ( Abc_Clock() > pMan.nTimeToStop )
@@ -199,27 +206,22 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
     finish:
     for(int i = 0 ; i < N ; i++) {
-        PoemObj_t *obj = &objs[i];
-        pNtk = (Abc_Ntk_t *)obj->ntk;
+        pNtk = (Abc_Ntk_t *)props[i]->ntk;
         Abc_NtkDelete(pNtk);
     }
     Abc_NtkDelete(orgNtk);
-    free(objs);
-    free(pdata);
-    Vec_IntFree(vPoIds);
+    free(pMan.objs);
+    free(pMan.pdata);
     // Vec_PtrFree(Lp);
 
     return ;
 }
 
 void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
-    extern int Abc_NtkDarBmc3( Abc_Ntk_t * pNtk, Saig_ParBmc_t * pPars, int fOrDecomp );
-    extern Abc_Ntk_t * Abc_NtkSelectPos( Abc_Ntk_t * pNtkInit, Vec_Int_t * vPoIds );
 
     int (*comparator)(const void *, const void *);
     comparator = CompFrame;
     
-    Vec_Int_t *vPoIds = Vec_IntStart(1); 
     Saig_ParBmc_t Pars, * pBmcPars = &Pars;
     int fOrDecomp = 0;
     Saig_ParBmcSetDefaultParams( pBmcPars );
@@ -232,34 +234,16 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
     int N = Abc_NtkPoNum(orgNtk);
 
-    PoemObj_t *objs = ABC_ALLOC(PoemObj_t, N);
-    PoemData_t *pdata = ABC_ALLOC(PoemData_t, N);
+    PoemMan pMan;
+    PoemManSeparatePorperties (&pMan, orgNtk);
+
     Vec_Ptr_t *Lp = Vec_PtrStart(N);
     std::vector<PoemObj_t*> props;
     for(int i = 0 ; i < N ; i++) {
-        Vec_IntWriteEntry(vPoIds, 0, i);
-        pNtk = Abc_NtkDup(orgNtk);
-        pNtk = Abc_NtkSelectPos( pNtk, vPoIds);
-        int fLatchConst  =   1;
-        int fLatchEqual  =   1;
-        int fSaveNames   =   1;
-        int fUseMvSweep  =   0;
-        int nFramesSymb  =   1;
-        int nFramesSatur = 512;
-        int fVerbose     =   0;
-        int fVeryVerbose =   0;
-        pNtk = Abc_NtkDarLatchSweep( pNtk, fLatchConst, fLatchEqual, fSaveNames, fUseMvSweep, nFramesSymb, nFramesSatur, fVerbose, fVeryVerbose );
-
-        objs[i].status = POEM_UNDEC;
-        objs[i].propNum = i;
-        objs[i].ntk = (void *)pNtk;
-        PoemDataInit(&pdata[i]);
-        objs[i].pData = &pdata[i];
-        Vec_PtrWriteEntry(Lp, i, &objs[i]);
-        props.push_back(&objs[i]);
+        Vec_PtrWriteEntry(Lp, i, &(pMan.objs[i]));
+        props.push_back(&(pMan.objs[i]));
     }
 
-    PoemMan pMan;
     PoemManInit (&pMan, N, pPars->nTimeOut, CLOCKS_PER_SEC);
     
     for (;;pMan.it++) {
@@ -272,11 +256,11 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
             pMan.maxClk = -1;
             pMan.maxFrame = -1;
             for (int i = 0 ; i < N ; i++)  {
-                if (objs[i].status == POEM_UNDEC) {
-                    pMan.minClk = std::min(pMan.minClk, objs[i].pData->nClk);
-                    pMan.maxClk = std::max( pMan.maxClk, objs[i].pData->nClk);
+                if (props[i]->status == POEM_UNDEC) {
+                    pMan.minClk = std::min(pMan.minClk, props[i]->pData->nClk);
+                    pMan.maxClk = std::max( pMan.maxClk, props[i]->pData->nClk);
                 }
-                pMan.maxFrame = std::max(pMan.maxFrame, (int)(objs[i].pData->nFrame));
+                pMan.maxFrame = std::max(pMan.maxFrame, (int)(props[i]->pData->nFrame));
             }
             printf("\r");
             print_log (&pMan);
@@ -357,14 +341,12 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
     finish:
     for(int i = 0 ; i < N ; i++) {
-        PoemObj_t *obj = &objs[i];
-        pNtk = (Abc_Ntk_t *)obj->ntk;
+        pNtk = (Abc_Ntk_t *)props[i]->ntk;
         Abc_NtkDelete(pNtk);
     }
-    // Abc_NtkDelete(orgNtk);
-    free(objs);
-    free(pdata);
-    Vec_IntFree(vPoIds);
+    Abc_NtkDelete(orgNtk);
+    free(pMan.objs);
+    free(pMan.pdata);
     Vec_PtrFree(Lp);
 
     return ;
@@ -372,10 +354,6 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
 
 void PoemMultiPropertyVerificationALG0( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
-    extern int Abc_NtkDarBmc3( Abc_Ntk_t * pNtk, Saig_ParBmc_t * pPars, int fOrDecomp );
-    extern Abc_Ntk_t * Abc_NtkSelectPos( Abc_Ntk_t * pNtkInit, Vec_Int_t * vPoIds );
-
-    Vec_Int_t *vPoIds = Vec_IntStart(1); 
     Saig_ParBmc_t Pars, * pBmcPars = &Pars;
     int fOrDecomp = 0;
     Saig_ParBmcSetDefaultParams( pBmcPars );
@@ -388,32 +366,14 @@ void PoemMultiPropertyVerificationALG0( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
     int N = Abc_NtkPoNum(orgNtk);
 
-    PoemObj_t *objs = ABC_ALLOC(PoemObj_t, N);
-    PoemData_t *pdata = ABC_ALLOC(PoemData_t, N);
+    PoemMan pMan;
+    PoemManSeparatePorperties (&pMan, orgNtk);
+
     std::vector<PoemObj_t*> props;
     for(int i = 0 ; i < N ; i++) {
-        Vec_IntWriteEntry(vPoIds, 0, i);
-        pNtk = Abc_NtkDup(orgNtk);
-        pNtk = Abc_NtkSelectPos( pNtk, vPoIds);
-        int fLatchConst  =   1;
-        int fLatchEqual  =   1;
-        int fSaveNames   =   1;
-        int fUseMvSweep  =   0;
-        int nFramesSymb  =   1;
-        int nFramesSatur = 512;
-        int fVerbose     =   0;
-        int fVeryVerbose =   0;
-        pNtk = Abc_NtkDarLatchSweep( pNtk, fLatchConst, fLatchEqual, fSaveNames, fUseMvSweep, nFramesSymb, nFramesSatur, fVerbose, fVeryVerbose );
-
-        objs[i].status = POEM_UNDEC;
-        objs[i].propNum = i;
-        objs[i].ntk = (void *)pNtk;
-        PoemDataInit(&pdata[i]);
-        objs[i].pData = &pdata[i];
-        props.push_back(&objs[i]);
+        props.push_back(&(pMan.objs[i]));
     }
 
-    PoemMan pMan;
     PoemManInit (&pMan, N, pPars->nTimeOut, (pPars->nTimeOut * CLOCKS_PER_SEC + N-1) / N);
     
     pMan.maxClk = pMan.clkBudget;
@@ -423,7 +383,7 @@ void PoemMultiPropertyVerificationALG0( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
             
             pMan.maxFrame = -1;
             for (int i = 0 ; i < N ; i++)  {
-                pMan.maxFrame = std::max(pMan.maxFrame, (int)(objs[i].pData->nFrame));
+                pMan.maxFrame = std::max(pMan.maxFrame, (int)(props[i]->pData->nFrame));
             }
 
             printf("\rprop: %d ", props[pMan.it]->propNum);
@@ -482,14 +442,12 @@ void PoemMultiPropertyVerificationALG0( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
     finish:
     for(int i = 0 ; i < N ; i++) {
-        PoemObj_t *obj = &objs[i];
-        pNtk = (Abc_Ntk_t *)obj->ntk;
+        pNtk = (Abc_Ntk_t *)props[i]->ntk;
         Abc_NtkDelete(pNtk);
     }
-    // Abc_NtkDelete(orgNtk);
-    free(objs);
-    free(pdata);
-    Vec_IntFree(vPoIds);
+    Abc_NtkDelete(orgNtk);
+    free(pMan.objs);
+    free(pMan.pdata);
 
     return ;
 }
@@ -497,7 +455,6 @@ void PoemMultiPropertyVerificationALG0( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 void SequentialMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
     
-    Vec_Int_t *vPoIds = Vec_IntStart(1); 
     Saig_ParBmc_t Pars, * pBmcPars = &Pars;
     int fOrDecomp = 0;
     Saig_ParBmcSetDefaultParams( pBmcPars );
@@ -510,36 +467,16 @@ void SequentialMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     // PrintMem("After Abc_NtkDup");
 
     int N = Abc_NtkPoNum(orgNtk);
+    PoemMan pMan;
+    PoemManSeparatePorperties (&pMan, orgNtk);
 
-    PoemObj_t *objs = ABC_ALLOC(PoemObj_t, N);
-    PoemData_t *pdata = ABC_ALLOC(PoemData_t, N);
     std::vector<PoemObj_t*> props;
     for(int i = 0 ; i < N ; i++) {
-        Vec_IntWriteEntry(vPoIds, 0, i);
-        pNtk = Abc_NtkDup(orgNtk);
-        pNtk = Abc_NtkSelectPos( pNtk, vPoIds);
-        int fLatchConst  =   1;
-        int fLatchEqual  =   1;
-        int fSaveNames   =   1;
-        int fUseMvSweep  =   0;
-        int nFramesSymb  =   1;
-        int nFramesSatur = 512;
-        int fVerbose     =   0;
-        int fVeryVerbose =   0;
-        pNtk = Abc_NtkDarLatchSweep( pNtk, fLatchConst, fLatchEqual, fSaveNames, fUseMvSweep, nFramesSymb, nFramesSatur, fVerbose, fVeryVerbose );
-
-        objs[i].status = POEM_UNDEC;
-        objs[i].propNum = i;
-        objs[i].ntk = (void *)pNtk;
-        objs[i].ntkSize = Abc_NtkPiNum(pNtk) + Abc_NtkLatchNum(pNtk) + Abc_NtkNodeNum(pNtk);
-        PoemDataInit(&pdata[i]);
-        objs[i].pData = &pdata[i];
-        props.push_back(&objs[i]);
+        props.push_back(&(pMan.objs[i]));
     }
 
     sort(props.begin(), props.end(), CompNtkSize());
 
-    PoemMan pMan;
     PoemManInit (&pMan, N, pPars->nTimeOut, pPars->nTimeOut * CLOCKS_PER_SEC);
     
     for (;pMan.it < N ; pMan.it++) {
@@ -550,8 +487,8 @@ void SequentialMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
             pMan.maxClk = 0;
             pMan.maxFrame = 0;
             for (int i = 0 ; i < N ; i++) {
-                pMan.maxFrame = std::max(pMan.maxFrame, (int)objs[i].pData->nFrame);
-                pMan.maxClk = std::max(pMan.maxClk, objs[i].pData->nClk);
+                pMan.maxFrame = std::max(pMan.maxFrame, (int)props[i]->pData->nFrame);
+                pMan.maxClk = std::max(pMan.maxClk, props[i]->pData->nClk);
             }
             printf("\rprop: %d ", best->propNum);
             print_log (&pMan);
@@ -602,15 +539,13 @@ void SequentialMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     print_stat(props);
 
     finish:
-    // for(int i = 0 ; i < N ; i++) {
-    //     PoemObj_t *obj = &objs[i];
-    //     pNtk = obj->ntk;
-    //     Abc_NtkDelete(pNtk);
-    // }
-    // Abc_NtkDelete(orgNtk);
-    free(objs);
-    free(pdata);
-    Vec_IntFree(vPoIds);
+    for(int i = 0 ; i < N ; i++) {
+        pNtk = (Abc_Ntk_t *)props[i]->ntk;
+        Abc_NtkDelete(pNtk);
+    }
+    Abc_NtkDelete(orgNtk);
+    free(pMan.objs);
+    free(pMan.pdata);
 
     return ;
 }

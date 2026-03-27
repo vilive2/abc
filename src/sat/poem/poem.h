@@ -57,6 +57,8 @@ typedef struct {
     int maxFrame;
     int solved;
     int N;
+    PoemObj_t *objs;
+    PoemData_t *pdata;
     abctime minClk;
     abctime maxClk;
     abctime clkTotal;
