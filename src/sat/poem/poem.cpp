@@ -16,10 +16,10 @@ ABC_NAMESPACE_HEADER_START
 extern int Abc_NtkDarBmc3( Abc_Ntk_t * pNtk, Saig_ParBmc_t * pPars, int fOrDecomp );
 extern Abc_Ntk_t * Abc_NtkSelectPos( Abc_Ntk_t * pNtkInit, Vec_Int_t * vPoIds );
 extern Abc_Ntk_t * Abc_NtkDarLatchSweep( Abc_Ntk_t * pNtk, int fLatchConst, int fLatchEqual, int fSaveNames, int fUseMvSweep, int nFramesSymb, int nFramesSatur, int fVerbose, int fVeryVerbose );
-
 ABC_NAMESPACE_HEADER_END
 
 extern void print_stat(std::vector<PoemObj_t*> &props);
+extern void print_log (PoemMan *pMan);
 
 static inline void PrintMem(const char *tag)
 {
@@ -46,6 +46,19 @@ void PoemDataInit ( PoemData_t *pData) {
     pData->nConflicts = 0;
     pData->nPropagations = 0;
     pData->nClk = 0;
+}
+
+void PoemManInit ( PoemMan *pMan, int N, int nTimeOut, int clkBudget) {
+    pMan->it = 0;
+    pMan->maxFrame = 0;
+    pMan->solved = 0;
+    pMan->N = N;
+    pMan->minClk = 0;
+    pMan->maxClk = 0;
+    pMan->clkTotal = Abc_Clock();
+    pMan->nTimeToStop = nTimeOut * CLOCKS_PER_SEC + Abc_Clock() ;
+    pMan->clkBudget = clkBudget;
+    pMan->clkRem = nTimeOut * CLOCKS_PER_SEC;
 }
 
 void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
@@ -99,65 +112,62 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         props.push_back(&objs[i]);
     }
 
-    abctime clkTotal = Abc_Clock();
-    abctime nTimeToStop = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock() : 0;
-    abctime clk, clkRun, clkBudget = CLOCKS_PER_SEC, clkRem = pPars->nTimeOut * CLOCKS_PER_SEC;
-
-    int nSat = 0, nUnsat = 0;
-    int minFrame = ABC_INFINITY, maxFrame = -ABC_INFINITY;
-    abctime minClk = ABC_INFINITY, maxClk = -ABC_INFINITY;
-
-    int j = 0;
+    PoemMan pMan;
+    PoemManInit (&pMan, N, pPars->nTimeOut, CLOCKS_PER_SEC);
     
-    while (1) {
+    for (;;pMan.it++) {
         PoemObj_t* best = pq.top();
         pq.pop();
         pNtk = (Abc_Ntk_t *)(best->ntk);
 
         if (pPars->fVerbose) {
-            printf(" prop: %d \n", best->propNum);
+            printf("\rprop: %d ", best->propNum);
+
+            print_log (&pMan);
+        }
+
+        if ( Abc_NtkLatchNum(pNtk) == 0 )
+        {
+            best->status = POEM_SOLVED;
+            pMan.solved++;
+            continue;
         }
 
 
-        abctime clkDiff = maxClk - best->pData->nClk;
-        clkBudget = clkDiff > clkBudget ? clkDiff : maxClk - minClk < clkBudget ? 2*clkBudget : clkBudget;
+        abctime clkDiff = pMan.maxClk - best->pData->nClk;
+        pMan.clkBudget = clkDiff > pMan.clkBudget ? clkDiff : pMan.maxClk - pMan.minClk < pMan.clkBudget ? 2*pMan.clkBudget : pMan.clkBudget;
         
-        clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
+        pMan.clkBudget = pMan.clkBudget < pMan.clkRem ? pMan.clkBudget : pMan.clkRem;
         
             
         pBmcPars->nStart = best->pData->nFrame;
         pBmcPars->pData->propNum = best->propNum; // Just to Debug ,TODO: Remove
         // pBmcPars->nStart = 0;
-        pBmcPars->nTimeOut = (0LL + clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
+        pBmcPars->nTimeOut = (0LL + pMan.clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
         // pBmcPars->nConfLimit = conflictBudget;
         pBmcPars->fSilent = 1;
         pBmcPars->iFrame = -1;
         PoemDataInit (pBmcPars->pData);
             
             
-        clk = Abc_Clock();
+        abctime clk = Abc_Clock();
         int status = Abc_NtkDarBmc3(pNtk, pBmcPars, fOrDecomp);
         // PrintMem("After BMC");
-        clkRun = Abc_Clock() - clk;
+        abctime clkRun = Abc_Clock() - clk;
         
         best->pData->nFrame += pBmcPars->pData->nFrame;
-        // obj->pData->nSat += pBmcPars->pData->nSat;
-        // obj->pData->nLearnt = pBmcPars->pData->nLearnt;
-        // obj->pData->nDecisions = pBmcPars->pData->nDecisions;
-        // obj->pData->nClause = pBmcPars->pData->nClause;
-        // obj->pData->nConflicts = pBmcPars->pData->nConflicts;
-        // obj->pData->nPropagations = pBmcPars->pData->nPropagations;
-        // obj->pData->score = pBmcPars->pData->nClause == 0 ? INF : obj->pData->score + 1.0 * pBmcPars->pData->nLearnt / pBmcPars->pData->nClause;
         best->pData->nClk += clkRun;
-        clkRem -= clkRun;
+        pMan.clkRem -= clkRun;
         
         if (status == ABC_SAT) {
             best->status = POEM_SAT;
-            nSat++;
+            // nSat++;
+            pMan.solved++;
             // Vec_PtrDrop(Lp, 0);
         } else if (status == ABC_UNSAT) {
             best->status = POEM_UNSAT;
-            nUnsat++;
+            // nUnsat++;
+            pMan.solved++;
             // Vec_PtrDrop(Lp, 0);
         } else if (status == ABC_UNDEC) {
             // Vec_PtrPush( unk_goals, obj);
@@ -168,40 +178,21 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
 
 
-        minClk = ABC_INFINITY;
-        maxClk = -1;
-        minFrame = ABC_INFINITY;
-        maxFrame = -1;
+        pMan.minClk = ABC_INFINITY;
+        pMan.maxClk = -1;
         for (int i = 0 ; i < N ; i++)  {
             if (objs[i].status == POEM_UNDEC) {
-                minClk = minClk < objs[i].pData->nClk ? minClk : objs[i].pData->nClk;
-                maxClk = maxClk > objs[i].pData->nClk ? maxClk : objs[i].pData->nClk;
+                pMan.minClk = std::min(pMan.minClk, objs[i].pData->nClk);
+                pMan.maxClk = std::max(pMan.maxClk, objs[i].pData->nClk);
             }
-            minFrame = Abc_MinInt(minFrame, (int)(objs[i].pData->nFrame));
-            maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
+            pMan.maxFrame = std::max(pMan.maxFrame, (int)(objs[i].pData->nFrame));
         }
 
-        if (pPars->fVerbose) {
-            printf("\r%d SAT, %d UNSAT, %d UNDECIDED, ", nSat, nUnsat, N-nSat-nUnsat);
-            printf("iteration %d, ", j);
-            printf("timeLimit %d sec., ", (0LL + clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC);
-            printf("minFrame %d, maxFrame %d, ", minFrame, maxFrame);
-            printf("minTime %9.2f sec., maxTime %9.2f sec., ", (float)minClk/(float)CLOCKS_PER_SEC, (float)maxClk/(float)CLOCKS_PER_SEC);
-            printf("completed %9.2f sec.", (float)(Abc_Clock() - clkTotal) / (float)CLOCKS_PER_SEC);
-        }
-            
-        if ( nTimeToStop && Abc_Clock() > nTimeToStop )
+        if ( Abc_Clock() > pMan.nTimeToStop )
             break;
-        if (clkBudget <= 0) break;
-
-        j++;
-
+        if (pMan.clkBudget <= 0) break;
 
         if ( pq.empty() ) break;
-        if ( nTimeToStop && Abc_Clock() > nTimeToStop ) break;
-        if (clkBudget <= 0) break;
-    
-        // Vec_PtrSort(Lp, comparator);
     }
 
     print_stat (props);
@@ -268,42 +259,28 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         props.push_back(&objs[i]);
     }
 
-    abctime clkTotal = Abc_Clock();
-    abctime nTimeToStop = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock() : 0;
-    abctime clk, clkRun, clkBudget = CLOCKS_PER_SEC, clkRem = pPars->nTimeOut * CLOCKS_PER_SEC;
-
-    int nSat = 0, nUnsat = 0;
-    int minFrame = ABC_INFINITY, maxFrame = -ABC_INFINITY;
-    abctime minClk = ABC_INFINITY, maxClk = -ABC_INFINITY;
-
-    int j = 0;
+    PoemMan pMan;
+    PoemManInit (&pMan, N, pPars->nTimeOut, CLOCKS_PER_SEC);
     
-    while (1) {
+    for (;;pMan.it++) {
         int solved = 0;
         
         Vec_Ptr_t *unk_goals = Vec_PtrAlloc( Vec_PtrSize(Lp) );
         
         if (pPars->fVerbose) {
-            printf("\nIteration: %d\n", j);
-            printf("Params: TimeOut = %d.\n",(0LL + clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC);
-            print_stat (props);
+            pMan.minClk = ABC_INFINITY;
+            pMan.maxClk = -1;
+            pMan.maxFrame = -1;
+            for (int i = 0 ; i < N ; i++)  {
+                if (objs[i].status == POEM_UNDEC) {
+                    pMan.minClk = std::min(pMan.minClk, objs[i].pData->nClk);
+                    pMan.maxClk = std::max( pMan.maxClk, objs[i].pData->nClk);
+                }
+                pMan.maxFrame = std::max(pMan.maxFrame, (int)(objs[i].pData->nFrame));
+            }
+            printf("\r");
+            print_log (&pMan);
         }
-
-        minClk = ABC_INFINITY;
-        maxClk = -1;
-        minFrame = ABC_INFINITY;
-        maxFrame = -1;
-        for (int i = 0 ; i < N ; i++)  {
-            minClk = minClk < objs[i].pData->nClk ? minClk : objs[i].pData->nClk;
-            maxClk = maxClk > objs[i].pData->nClk ? maxClk : objs[i].pData->nClk;
-            minFrame = Abc_MinInt(minFrame, (int)(objs[i].pData->nFrame));
-            maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
-        }
-
-        printf("\r%d SAT, %d UNSAT, %d UNDECIDED, ", nSat, nUnsat, N-nSat-nUnsat);
-        printf("minFrame %d, maxFrame %d, ", minFrame, maxFrame);
-        printf("minTime %9.2f sec., maxTime %9.2f sec., ", (float)minClk/(float)CLOCKS_PER_SEC, (float)maxClk/(float)CLOCKS_PER_SEC);
-        printf("completed %9.2f sec.", (float)(Abc_Clock() - clkTotal) / (float)CLOCKS_PER_SEC);
 
         int idx;
         PoemObj_t *obj;
@@ -311,27 +288,34 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
             
             pNtk = (Abc_Ntk_t *)(obj->ntk);
+
+            if ( Abc_NtkLatchNum(pNtk) == 0 )
+            {
+                obj->status = POEM_SOLVED;
+                pMan.solved++;
+                continue;
+            }
             
             pBmcPars->nStart = obj->pData->nFrame;
             // pBmcPars->nStart = 0;
-            pBmcPars->nTimeOut = (0LL + clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
+            pBmcPars->nTimeOut = (0LL + pMan.clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
             pBmcPars->fSilent = 1;
             pBmcPars->iFrame = -1;
             PoemDataInit (pBmcPars->pData);
             
             
-            clk = Abc_Clock();
+            abctime clk = Abc_Clock();
             int status = Abc_NtkDarBmc3(pNtk, pBmcPars, fOrDecomp);
-            clkRun = Abc_Clock() - clk;
+            abctime clkRun = Abc_Clock() - clk;
 
             if (status == ABC_SAT) {
                 obj->status = POEM_SAT;
                 solved++;
-                nSat++;
+                pMan.solved++;
             } else if (status == ABC_UNSAT) {
                 obj->status = POEM_UNSAT;
                 solved++;
-                nUnsat++;
+                pMan.solved++;
             } else if (status == ABC_UNDEC) {
                 Vec_PtrPush( unk_goals, obj);
             } else {
@@ -341,31 +325,30 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
             obj->pData->nFrame += pBmcPars->pData->nFrame;
             obj->pData->nClk += clkRun;
-            clkRem -= clkRun;
+            pMan.clkRem -= clkRun;
 
-            clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
+            pMan.clkBudget = std::min(pMan.clkBudget, pMan.clkRem);
             
-            if ( nTimeToStop && Abc_Clock() > nTimeToStop )
+            if (Abc_Clock() > pMan.nTimeToStop )
                 break;
-            if (clkBudget <= 0) break;
+            if (pMan.clkBudget <= 0) break;
         }
 
         Vec_PtrFree(Lp);
         Lp = unk_goals;
         
-        j++;
 
 
         if ( Lp->nSize == 0 ) break;
-        if ( nTimeToStop && Abc_Clock() > nTimeToStop ) break;
-        if (clkBudget <= 0) break;
+        if ( Abc_Clock() > pMan.nTimeToStop ) break;
+        if (pMan.clkBudget <= 0) break;
     
         Vec_PtrSort(Lp, comparator);
         
         if (solved == 0) {
-            clkBudget = clkBudget * 2;
+            pMan.clkBudget = pMan.clkBudget * 2;
         }
-        clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
+        pMan.clkBudget = std::min(pMan.clkBudget, pMan.clkRem);
     }
 
     print_stat(props);
@@ -430,56 +413,52 @@ void PoemMultiPropertyVerificationALG0( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         props.push_back(&objs[i]);
     }
 
-    abctime clkTotal = Abc_Clock();
-    abctime nTimeToStop = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock() : 0;
-    abctime clk, clkRun, clkBudget = (pPars->nTimeOut * CLOCKS_PER_SEC) / N, clkRem = pPars->nTimeOut * CLOCKS_PER_SEC;
-
-    int nSat = 0, nUnsat = 0;
-    int minFrame = ABC_INFINITY, maxFrame = -ABC_INFINITY;
+    PoemMan pMan;
+    PoemManInit (&pMan, N, pPars->nTimeOut, (pPars->nTimeOut * CLOCKS_PER_SEC + N-1) / N);
     
-    int i = 0;
-    
-    while (i < N) {
+    pMan.maxClk = pMan.clkBudget;
+    for (;pMan.it < N;pMan.it++) {
 
         if (pPars->fVerbose) {
-            printf("\rIteration: %d ", i);
-            printf("Params: TimeOut = %lld. ",(0LL + clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC);    
-
-            minFrame = ABC_INFINITY;
-            maxFrame = -1;
+            
+            pMan.maxFrame = -1;
             for (int i = 0 ; i < N ; i++)  {
-                minFrame = Abc_MinInt(minFrame, (int)(objs[i].pData->nFrame));
-                maxFrame = Abc_MaxInt(maxFrame, (int)(objs[i].pData->nFrame));
+                pMan.maxFrame = std::max(pMan.maxFrame, (int)(objs[i].pData->nFrame));
             }
 
-            printf(" %d SAT, %d UNSAT, %d UNDECIDED, ", nSat, nUnsat, N-nSat-nUnsat);
-            printf("minFrame %d, maxFrame %d, ", minFrame, maxFrame);
-            printf("completed %9.2f sec.", (float)(Abc_Clock() - clkTotal) / (float)CLOCKS_PER_SEC);
-
+            printf("\rprop: %d ", props[pMan.it]->propNum);
+            print_log (&pMan);
         }
 
-        PoemObj_t *obj = props[i];
+        PoemObj_t *obj = props[pMan.it];
             
         pNtk = (Abc_Ntk_t *)(obj->ntk);
+
+        if ( Abc_NtkLatchNum(pNtk) == 0 )
+        {
+            obj->status = POEM_SOLVED;
+            pMan.solved++;
+            continue;
+        }
         
         pBmcPars->nStart = obj->pData->nFrame;
         // pBmcPars->nStart = 0;
-        pBmcPars->nTimeOut = (0LL + clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
+        pBmcPars->nTimeOut = (0LL + pMan.clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
         pBmcPars->fSilent = 1;
         pBmcPars->iFrame = -1;
         PoemDataInit (pBmcPars->pData);
         
         
-        clk = Abc_Clock();
+        abctime clk = Abc_Clock();
         int status = Abc_NtkDarBmc3(pNtk, pBmcPars, fOrDecomp);
-        clkRun = Abc_Clock() - clk;
+        abctime clkRun = Abc_Clock() - clk;
 
         if (status == ABC_SAT) {
             obj->status = POEM_SAT;
-            nSat++;
+            pMan.solved++;
         } else if (status == ABC_UNSAT) {
             obj->status = POEM_UNSAT;
-            nUnsat++;
+            pMan.solved++;
         } else if (status == ABC_UNDEC) {
         
         } else {
@@ -488,19 +467,13 @@ void PoemMultiPropertyVerificationALG0( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
         obj->pData->nFrame += pBmcPars->pData->nFrame;
         obj->pData->nClk += clkRun;
-        clkRem -= clkRun;
+        pMan.clkRem -= clkRun;
 
-        clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
+        pMan.clkBudget = std::min(pMan.clkBudget, pMan.clkRem);
         
-        if ( nTimeToStop && Abc_Clock() > nTimeToStop )
+        if (Abc_Clock() > pMan.nTimeToStop )
             break;
-        if (clkBudget <= 0) break;
-        
-        i++;
-
-        if ( nTimeToStop && Abc_Clock() > nTimeToStop ) break;
-    
-        clkBudget = clkBudget < clkRem ? clkBudget : clkRem;
+        if (pMan.clkBudget <= 0) break;
     }
 
     print_stat(props);
@@ -566,55 +539,64 @@ void SequentialMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
     sort(props.begin(), props.end(), CompNtkSize());
 
-    abctime nTimeToStop = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock() : 0;
-    abctime clk, clkRun, clkRem = pPars->nTimeOut * CLOCKS_PER_SEC;
-
-    int nSat = 0, nUnsat = 0;
-    int minFrame = ABC_INFINITY, maxFrame = -ABC_INFINITY;
-    abctime minClk = ABC_INFINITY, maxClk = -ABC_INFINITY;
-
-    int j = 0;
+    PoemMan pMan;
+    PoemManInit (&pMan, N, pPars->nTimeOut, pPars->nTimeOut * CLOCKS_PER_SEC);
     
-    while (j < N) {
-        PoemObj_t* best = props[j];
+    for (;pMan.it < N ; pMan.it++) {
+        PoemObj_t* best = props[pMan.it];
         pNtk = (Abc_Ntk_t *)(best->ntk);
 
         if (pPars->fVerbose) {
-            printf(" prop: %d \n", best->propNum);
+            pMan.maxClk = 0;
+            pMan.maxFrame = 0;
+            for (int i = 0 ; i < N ; i++) {
+                pMan.maxFrame = std::max(pMan.maxFrame, (int)objs[i].pData->nFrame);
+                pMan.maxClk = std::max(pMan.maxClk, objs[i].pData->nClk);
+            }
+            printf("\rprop: %d ", best->propNum);
+            print_log (&pMan);
+        }
+
+        if ( Abc_NtkLatchNum(pNtk) == 0 )
+        {
+            best->status = POEM_SOLVED;
+            pMan.solved++;
+            continue;
         }
 
         pBmcPars->nStart = 0;
         pBmcPars->pData->propNum = best->propNum; // Just to Debug ,TODO: Remove
-        pBmcPars->nTimeOut = (0LL + clkRem + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
+        pBmcPars->nTimeOut = (0LL + pMan.clkRem + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
         pBmcPars->fSilent = 1;
         pBmcPars->iFrame = -1;
         PoemDataInit (pBmcPars->pData);
             
             
-        clk = Abc_Clock();
+        abctime clk = Abc_Clock();
         int status = Abc_NtkDarBmc3(pNtk, pBmcPars, fOrDecomp);
-        clkRun = Abc_Clock() - clk;
+        abctime clkRun = Abc_Clock() - clk;
         
         best->pData->nFrame += pBmcPars->pData->nFrame;
         best->pData->nClk += clkRun;
-        clkRem -= clkRun;
+        pMan.clkRem -= clkRun;
         
         if (status == ABC_SAT) {
             best->status = POEM_SAT;
-            nSat++;
+            pMan.solved++;
         } else if (status == ABC_UNSAT) {
             best->status = POEM_UNSAT;
-            nUnsat++;
+            pMan.solved++;
         } else if (status == ABC_UNDEC) {
             
         } else {
             goto finish;
         }
 
-            
-        if ( nTimeToStop && Abc_Clock() > nTimeToStop )
+        pMan.clkBudget = pMan.clkRem;
+        
+        if (Abc_Clock() > pMan.nTimeToStop )
             break;
-        j++;
+        if (pMan.clkRem <= 0) break;
     }
 
     print_stat(props);

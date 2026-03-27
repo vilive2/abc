@@ -4,6 +4,7 @@
 #define POEM_SAT 1
 #define POEM_UNSAT -1
 #define POEM_UNDEC 0
+#define POEM_SOLVED 2
 
 #define ABC_SAT 0
 #define ABC_UNSAT 1
@@ -50,6 +51,19 @@ typedef struct {
     int status;
     int propNum;
 } PoemObj_t;
+
+typedef struct {
+    int it;
+    int maxFrame;
+    int solved;
+    int N;
+    abctime minClk;
+    abctime maxClk;
+    abctime clkTotal;
+    abctime nTimeToStop;
+    abctime clkBudget;
+    abctime clkRem;
+} PoemMan;
 
 extern int CompLearnt(const void *a, const void *b);
 extern int CompScore(const void *a, const void *b);

@@ -55,3 +55,15 @@ void print_stat(std::vector<PoemObj_t*> &props) {
     printf("\n%-10s %-15s %-22s %-11s %-16s\n", "Solved", "Time(solved)", "Avg. Frame(unsolved)", "Max Frame", "Time(unsolved)");
     printf("%-10d %-15.2f %-22.2f %-11d %-16.2f\n", S, time_solved, avg_frame, max_frame, time_unsolved);
 }
+
+void print_log (PoemMan *pMan) {
+    printf("[ ");
+    printf("iter. %d, ", pMan->it);
+    printf("rem. %.2f sec., ", (float)(pMan->clkRem) / (float)CLOCKS_PER_SEC);
+    printf("timeLimit %lld sec., ", (0LL + pMan->clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC);
+    printf("minTime %.2f sec., ", (float)pMan->minClk / (float)(CLOCKS_PER_SEC));
+    printf("maxTime %.2f sec., ", (float)pMan->maxClk / (float)CLOCKS_PER_SEC);
+    printf("maxFrame %d, ", pMan->maxFrame);
+    printf("solved %d, ", pMan->solved);
+    printf(" ]");
+}
