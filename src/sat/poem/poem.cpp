@@ -10,7 +10,8 @@
 #include <queue>
 #include <vector>
 #include <algorithm>
-#include <random>
+#include <cstdlib>
+#include <ctime>
 
 ABC_NAMESPACE_HEADER_START
 
@@ -497,13 +498,14 @@ void PoemMultiPropertyVerificationALGR( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         props.push_back(&(pMan.objs[i]));
     }
 
-    // Order Property : Random
-    // Create a random device and generator
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    // Shuffle the vector
-    std::shuffle(props.begin(), props.end(), gen);
-
+    // Initialize random seed
+    std::srand(static_cast<unsigned int>(std::time(nullptr)));
+    // Fisher-Yates shuffle using rand()
+    for (size_t i = N-1; i > 0 ; --i) {
+        size_t j = std::rand() % (i+1);
+        std::swap(props[i], props[j]);
+    }
+    
     PoemManInit (&pMan, N, pPars->nTimeOut, (pPars->nTimeOut * CLOCKS_PER_SEC));
     
     for (;pMan.it < N;pMan.it++) {
