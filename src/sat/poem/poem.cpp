@@ -50,7 +50,7 @@ void PoemDataInit ( PoemData_t *pData) {
     pData->nClk = 0;
 }
 
-void PoemManInit ( PoemMan *pMan, int N, int nTimeOut, int clkBudget) {
+void PoemManInit ( PoemMan *pMan, int N, int nTimeOut, abctime clkBudget) {
     pMan->it = 0;
     pMan->maxFrame = 0;
     pMan->solved = 0;
@@ -506,7 +506,7 @@ void PoemMultiPropertyVerificationALGR( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         std::swap(props[i], props[j]);
     }
     
-    PoemManInit (&pMan, N, pPars->nTimeOut, (pPars->nTimeOut * CLOCKS_PER_SEC));
+    PoemManInit (&pMan, N, pPars->nTimeOut, (1LL*pPars->nTimeOut * CLOCKS_PER_SEC));
     
     for (;pMan.it < N;pMan.it++) {
 
