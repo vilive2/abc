@@ -43,6 +43,8 @@ ABC_NAMESPACE_HEADER_START
 ////////////////////////////////////////////////////////////////////////
 
 
+typedef struct BmcState_ BmcState;
+
 // exact synthesis parameters
 
 typedef struct Bmc_EsPar_t_ Bmc_EsPar_t;
@@ -234,6 +236,10 @@ extern int               Saig_BmcPerform( Aig_Man_t * pAig, int nStart, int nFra
 /*=== bmcBmc3.c ==========================================================*/
 extern void              Saig_ParBmcSetDefaultParams( Saig_ParBmc_t * p );
 extern int               Saig_ManBmcScalable( Aig_Man_t * pAig, Saig_ParBmc_t * pPars );
+extern int               Saig_ManBmcScalableContinue( BmcState *state, Aig_Man_t * pAig, Saig_ParBmc_t * pPars );
+extern BmcState *        createBmcState (Aig_Man_t * pAig, Saig_ParBmc_t * pPars);
+extern void              deleteBmcState (BmcState *state);
+extern void              resetBmcState (BmcState * state, Aig_Man_t * pAig, Saig_ParBmc_t * pPars);
 /*=== bmcBmcAnd.c ==========================================================*/
 extern int               Gia_ManBmcPerform( Gia_Man_t * p, Bmc_AndPar_t * pPars );
 /*=== bmcCexCare.c ==========================================================*/

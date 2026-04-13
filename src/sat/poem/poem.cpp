@@ -15,7 +15,10 @@
 
 ABC_NAMESPACE_HEADER_START
 
+extern Aig_Man_t * Abc_NtkToDar( Abc_Ntk_t * pNtk, int fExors, int fRegisters );
+extern void Aig_ManStop( Aig_Man_t * p );
 extern int Abc_NtkDarBmc3( Abc_Ntk_t * pNtk, Saig_ParBmc_t * pPars, int fOrDecomp );
+extern int Abc_NtkDarBmc3Continue( BmcState *state, Aig_Man_t * pMan, Abc_Ntk_t * pNtk, Saig_ParBmc_t * pPars, int fOrDecomp );
 extern Abc_Ntk_t * Abc_NtkSelectPos( Abc_Ntk_t * pNtkInit, Vec_Int_t * vPoIds );
 extern Abc_Ntk_t * Abc_NtkDarLatchSweep( Abc_Ntk_t * pNtk, int fLatchConst, int fLatchEqual, int fSaveNames, int fUseMvSweep, int nFramesSymb, int nFramesSatur, int fVerbose, int fVeryVerbose );
 ABC_NAMESPACE_HEADER_END
@@ -139,9 +142,14 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
     std::priority_queue<PoemObj_t*, std::vector<PoemObj_t*>, CompFPS> pq;
     std::vector<PoemObj_t*> props;
+    std::vector<BmcState *> bmcstate(N);
+    std::vector<Aig_Man_t *> aigman(N);
+    // std::vector<Saig_ParBmc_t *> bmcpar(N);
     for(int i = 0 ; i < N ; i++) {
         pq.push(&(pMan.objs[i]));
         props.push_back(&(pMan.objs[i]));
+        aigman[i] = Abc_NtkToDar( (Abc_Ntk_t *)pMan.objs[i].ntk, 0, 1 );
+        bmcstate[i] = createBmcState (aigman[i], pBmcPars);
     }
 
     assert (pPars->nTimeOut > 0);
@@ -177,13 +185,13 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         // pBmcPars->nStart = 0;
         pBmcPars->nTimeOut = (0LL + pMan.clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
         // pBmcPars->nConfLimit = conflictBudget;
-        pBmcPars->fSilent = 1;
+        // pBmcPars->fSilent = 1;
         pBmcPars->iFrame = -1;
         PoemDataInit (pBmcPars->pData);
             
             
         abctime clk = Abc_Clock();
-        int status = Abc_NtkDarBmc3(pNtk, pBmcPars, fOrDecomp);
+        int status = Abc_NtkDarBmc3Continue(bmcstate[best->propNum], aigman[best->propNum], pNtk, pBmcPars, fOrDecomp);
         // PrintMem("After BMC");
         abctime clkRun = Abc_Clock() - clk;
         
@@ -233,6 +241,8 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     for(int i = 0 ; i < N ; i++) {
         pNtk = (Abc_Ntk_t *)props[i]->ntk;
         Abc_NtkDelete(pNtk);
+        deleteBmcState (bmcstate[i]);
+        Aig_ManStop( aigman[i] );
     }
     Abc_NtkDelete(orgNtk);
     free(pMan.objs);

@@ -2541,6 +2541,110 @@ int Abc_NtkDarBmc3( Abc_Ntk_t * pNtk, Saig_ParBmc_t * pPars, int fOrDecomp )
     return RetValue;
 }
 
+
+/**Function*************************************************************
+
+  Synopsis    []
+
+  Description []
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+int Abc_NtkDarBmc3Continue( BmcState *state, Aig_Man_t * pMan, Abc_Ntk_t * pNtk, Saig_ParBmc_t * pPars, int fOrDecomp )
+{
+    Vec_Int_t * vMap = NULL;
+    int status, RetValue = -1;
+    abctime clk = Abc_Clock();
+    abctime nTimeOut = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock(): 0;
+    
+    // Run this in at one level up pMan = Abc_NtkToDar( pNtk, 0, 1 );
+    if ( pMan == NULL )
+    {
+        Abc_Print( 1, "Converting miter into AIG has failed.\n" );
+        return RetValue;
+    }
+    assert( pMan->nRegs > 0 );
+    if ( pPars->fVerbose && vMap && Abc_NtkPoNum(pNtk) != Saig_ManPoNum(pMan) ) 
+        Abc_Print( 1, "Expanded %d outputs into %d outputs using OR decomposition.\n", Abc_NtkPoNum(pNtk), Saig_ManPoNum(pMan) );
+
+    RetValue = Saig_ManBmcScalableContinue( state, pMan, pPars );
+    ABC_FREE( pNtk->pModel );
+    ABC_FREE( pNtk->pSeqModel );
+    pNtk->pSeqModel = pMan->pSeqModel; pMan->pSeqModel = NULL;
+    if ( !pPars->fSilent )
+    {
+        if ( RetValue == 1 )
+        {
+            Abc_Print( 1, "Explored all reachable states after completing %d frames.  ", 1<<Aig_ManRegNum(pMan) );
+        }
+        else if ( RetValue == -1 )
+        {
+            if ( pPars->nFailOuts == 0 )
+            {
+                Abc_Print( 1, "No output asserted in %d frames. Resource limit reached ", Abc_MaxInt(pPars->iFrame+1,0) );
+                if ( nTimeOut && Abc_Clock() > nTimeOut )
+                    Abc_Print( 1, "(timeout %d sec). ", pPars->nTimeOut );
+                else
+                    Abc_Print( 1, "(conf limit %d). ", pPars->nConfLimit );
+            }
+            else
+            {
+                Abc_Print( 1, "The total of %d outputs asserted in %d frames. Resource limit reached ", pPars->nFailOuts, pPars->iFrame );
+                if ( Abc_Clock() > nTimeOut )
+                    Abc_Print( 1, "(timeout %d sec). ", pPars->nTimeOut );
+                else
+                    Abc_Print( 1, "(conf limit %d). ", pPars->nConfLimit );
+            }
+        }
+        else // if ( RetValue == 0 )
+        {
+            if ( !pPars->fSolveAll )
+            {
+                Abc_Cex_t * pCex = pNtk->pSeqModel;
+                Abc_Print( 1, "Output %d of miter \"%s\" was asserted in frame %d. ", pCex->iPo, pNtk->pName, pCex->iFrame );
+            }
+            else
+            {
+                int nOutputs = Saig_ManPoNum(pMan) - Saig_ManConstrNum(pMan);
+                if ( pMan->vSeqModelVec == NULL || Vec_PtrCountZero(pMan->vSeqModelVec) == nOutputs )
+                    Abc_Print( 1, "None of the %d outputs is found to be SAT", nOutputs );
+                else if ( Vec_PtrCountZero(pMan->vSeqModelVec) == 0 )
+                    Abc_Print( 1, "All %d outputs are found to be SAT", nOutputs );
+                else
+                {
+                    Abc_Print( 1, "Some outputs are SAT (%d out of %d)", nOutputs - Vec_PtrCountZero(pMan->vSeqModelVec), nOutputs );
+                    if ( pPars->nDropOuts )
+                        Abc_Print( 1, " while others timed out (%d out of %d)", pPars->nDropOuts, nOutputs );
+                }
+                Abc_Print( 1, " after %d frames", pPars->iFrame+2 );
+                Abc_Print( 1, ".   " );
+            }
+        }
+        ABC_PRT( "Time", Abc_Clock() - clk );
+    }
+    if ( RetValue == 0 && pPars->fSolveAll )
+    {
+        if ( pNtk->vSeqModelVec )
+            Vec_PtrFreeFree( pNtk->vSeqModelVec );
+        pNtk->vSeqModelVec = pMan->vSeqModelVec;  pMan->vSeqModelVec = NULL;
+    }
+    if ( pNtk->pSeqModel ) 
+    {
+        status = Saig_ManVerifyCex( pMan, pNtk->pSeqModel );
+        if ( status == 0 )
+            Abc_Print( 1, "Abc_NtkDarBmc3(): Counter-example verification has FAILED.\n" );
+    }
+    // call this at one level up Aig_ManStop( pMan );
+    // update the counter-example
+    if ( pNtk->pSeqModel && vMap )
+        pNtk->pSeqModel->iPo = Vec_IntEntry( vMap, pNtk->pSeqModel->iPo );
+    Vec_IntFreeP( &vMap );
+    return RetValue;
+}
+
 /**Function*************************************************************
 
   Synopsis    [Gives the current ABC network to AIG manager for processing.]
