@@ -1,9 +1,6 @@
-nusmvsyncarb10multi.aig
 sm98tcasmulti.aig
-6s395.aig
 bob12m16m.aig
 6s48.aig
-6s113.aig
 6s165.aig
 nusmvdme1d16multi.aig
 bob12m17m.aig
@@ -11,12 +8,10 @@ bob12m18m.aig
 6s169.aig
 6s291.aig
 6s417.aig
-6s261.aig
 mentorbm1.aig
 6s317.aig
 pdtvsar8multip.aig
 6s124.aig
-6s362.aig
 6s325.aig
 oski1.aig
 6s155.aig
@@ -28,12 +23,10 @@ oski1.aig
 6s429.aig
 bob12m08m.aig
 6s116.aig
-6s306.aig
 6s340.aig
 bob12m05m.aig
 6s138.aig
 bob12m07m.aig
-6s321.aig
 6s175.aig
 6s273.aig
 6s381.aig
@@ -47,4 +40,3 @@ bob12m07m.aig
 6s137.aig
 6s387.aig
 6s332.aig
-6s125.aig
