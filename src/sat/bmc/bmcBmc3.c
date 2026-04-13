@@ -1923,6 +1923,570 @@ finish:
     return RetValue;
 }
 
+
+
+/**Function*************************************************************
+
+  Synopsis    [Bounded model checking engine continue.]
+
+  Description []
+               
+  SideEffects []
+
+  SeeAlso     []
+
+***********************************************************************/
+
+struct BmcState_ 
+{
+    Gia_ManBmc_t * p;
+    FILE * pLogFile;
+    int RetValue;
+    int fFirst;
+    int nJumpFrame;
+    int nOutDigits;
+    int f;
+};
+
+void deleteBmcState (BmcState *state) {
+    Saig_Bmc3ManStop( state->p );
+    if (state->pLogFile ) fclose (state->pLogFile);
+    free(state);
+}
+
+BmcState * createBmcState (Aig_Man_t * pAig, Saig_ParBmc_t * pPars) {
+    BmcState * state;
+    state = ABC_CALLOC ( BmcState, 1);
+    state->pLogFile = NULL;
+    state->RetValue = -1, state->fFirst = 1, state->nJumpFrame = 0;
+    state->nOutDigits = Abc_Base10Log( Saig_ManPoNum(pAig) );
+    
+    if ( pPars->pLogFileName )
+    state->pLogFile = fopen( pPars->pLogFileName, "wb" );
+    if ( pPars->nTimeOutOne && pPars->nTimeOut == 0 )
+    pPars->nTimeOut = pPars->nTimeOutOne * Saig_ManPoNum(pAig) / 1000 + 1;
+    if ( pPars->nTimeOutOne && !pPars->fSolveAll )
+        pPars->nTimeOutOne = 0;
+        
+    // create BMC manager
+    state->p = Saig_Bmc3ManStart( pAig, pPars->nTimeOutOne, pPars->nConfLimit, pPars->nPropLimit, pPars->fUseSatoko, pPars->fUseGlucose );
+    state->p->pPars = pPars;
+    if ( state->p->pSat )
+    {
+        state->p->pSat->nLearntStart = state->p->pPars->nLearnedStart;
+        state->p->pSat->nLearntDelta = state->p->pPars->nLearnedDelta;
+        state->p->pSat->nLearntRatio = state->p->pPars->nLearnedPerce;
+        state->p->pSat->nLearntMax   = state->p->pSat->nLearntStart;
+        state->p->pSat->fNoRestarts  = state->p->pPars->fNoRestarts;
+        state->p->pSat->RunId        = state->p->pPars->RunId;
+        state->p->pSat->pFuncStop    = state->p->pPars->pFuncStop;
+    }
+    else if ( state->p->pSat3 )
+    {
+        //        satoko_set_runid(p->pSat3, p->pPars->RunId);
+//        satoko_set_stop_func(p->pSat3, p->pPars->pFuncStop);
+    }
+    else
+    {
+        satoko_set_runid(state->p->pSat2, state->p->pPars->RunId);
+        satoko_set_stop_func(state->p->pSat2, state->p->pPars->pFuncStop);
+    }
+    if ( pPars->fSolveAll && state->p->vCexes == NULL )
+    state->p->vCexes = Vec_PtrStart( Saig_ManPoNum(pAig) );
+    if ( pPars->fVerbose )
+    {
+        Abc_Print( 1, "Running \"bmc3\". PI/PO/Reg = %d/%d/%d. And =%7d. Lev =%6d. ObjNums =%6d.\n",// Sect =%3d.\n", 
+            Saig_ManPiNum(pAig), Saig_ManPoNum(pAig), Saig_ManRegNum(pAig),
+            Aig_ManNodeNum(pAig), Aig_ManLevelNum(pAig), state->p->nObjNums );//, Vec_VecSize(p->vSects) );
+        Abc_Print( 1, "Params: FramesMax = %d. Start = %d. ConfLimit = %d. TimeOut = %d. SolveAll = %d.\n", 
+            pPars->nFramesMax, pPars->nStart, pPars->nConfLimit, pPars->nTimeOut, pPars->fSolveAll );
+    } 
+    pPars->nFramesMax = pPars->nFramesMax ? pPars->nFramesMax : ABC_INFINITY;
+    
+    // perform frames
+    Aig_ManRandom( 1 );
+    pPars->timeLastSolved = Abc_Clock();
+    
+    state->f = 0;
+    
+    return state;
+}
+
+void resetBmcState (BmcState * state, Aig_Man_t * pAig, Saig_ParBmc_t * pPars) {
+    Saig_Bmc3ManStop( state->p );
+    if (state->pLogFile) fclose (state->pLogFile);
+    
+    state->pLogFile = NULL;
+    state->RetValue = -1, state->fFirst = 1, state->nJumpFrame = 0;
+    state->nOutDigits = Abc_Base10Log( Saig_ManPoNum(pAig) );
+    
+    if ( pPars->pLogFileName )
+    state->pLogFile = fopen( pPars->pLogFileName, "wb" );
+    if ( pPars->nTimeOutOne && pPars->nTimeOut == 0 )
+    pPars->nTimeOut = pPars->nTimeOutOne * Saig_ManPoNum(pAig) / 1000 + 1;
+    if ( pPars->nTimeOutOne && !pPars->fSolveAll )
+        pPars->nTimeOutOne = 0;
+        
+    // create BMC manager
+    state->p = Saig_Bmc3ManStart( pAig, pPars->nTimeOutOne, pPars->nConfLimit, pPars->nPropLimit, pPars->fUseSatoko, pPars->fUseGlucose );
+    state->p->pPars = pPars;
+    if ( state->p->pSat )
+    {
+        state->p->pSat->nLearntStart = state->p->pPars->nLearnedStart;
+        state->p->pSat->nLearntDelta = state->p->pPars->nLearnedDelta;
+        state->p->pSat->nLearntRatio = state->p->pPars->nLearnedPerce;
+        state->p->pSat->nLearntMax   = state->p->pSat->nLearntStart;
+        state->p->pSat->fNoRestarts  = state->p->pPars->fNoRestarts;
+        state->p->pSat->RunId        = state->p->pPars->RunId;
+        state->p->pSat->pFuncStop    = state->p->pPars->pFuncStop;
+    }
+    else if ( state->p->pSat3 )
+    {
+        //        satoko_set_runid(p->pSat3, p->pPars->RunId);
+//        satoko_set_stop_func(p->pSat3, p->pPars->pFuncStop);
+    }
+    else
+    {
+        satoko_set_runid(state->p->pSat2, state->p->pPars->RunId);
+        satoko_set_stop_func(state->p->pSat2, state->p->pPars->pFuncStop);
+    }
+    if ( pPars->fSolveAll && state->p->vCexes == NULL )
+    state->p->vCexes = Vec_PtrStart( Saig_ManPoNum(pAig) );
+    if ( pPars->fVerbose )
+    {
+        Abc_Print( 1, "Running \"bmc3\". PI/PO/Reg = %d/%d/%d. And =%7d. Lev =%6d. ObjNums =%6d.\n",// Sect =%3d.\n", 
+            Saig_ManPiNum(pAig), Saig_ManPoNum(pAig), Saig_ManRegNum(pAig),
+            Aig_ManNodeNum(pAig), Aig_ManLevelNum(pAig), state->p->nObjNums );//, Vec_VecSize(p->vSects) );
+        Abc_Print( 1, "Params: FramesMax = %d. Start = %d. ConfLimit = %d. TimeOut = %d. SolveAll = %d.\n", 
+            pPars->nFramesMax, pPars->nStart, pPars->nConfLimit, pPars->nTimeOut, pPars->fSolveAll );
+    } 
+    pPars->nFramesMax = pPars->nFramesMax ? pPars->nFramesMax : ABC_INFINITY;
+    
+    // perform frames
+    Aig_ManRandom( 1 );
+    pPars->timeLastSolved = Abc_Clock();
+    
+    state->f = 0;
+}
+
+
+int Saig_ManBmcScalableContinue( BmcState *state, Aig_Man_t * pAig, Saig_ParBmc_t * pPars )
+{
+    
+    // RESTORE BMC STATE
+    Gia_ManBmc_t * p = state->p;
+    FILE * pLogFile = state->pLogFile;
+    int RetValue = state->RetValue;
+    int fFirst = state->fFirst;
+    int nJumpFrame = state->nJumpFrame;
+    int nOutDigits = state->nOutDigits;
+    int f = state->f;
+    
+    abctime clkOther = 0, clkTotal = Abc_Clock();
+    abctime nTimeUnsat = 0, nTimeSat = 0, nTimeUndec = 0, clkOne = 0;
+    abctime clkSatRun, clk, clk2;
+    
+    abctime nTimeToStopNG = pPars->nTimeOut ? pPars->nTimeOut * CLOCKS_PER_SEC + Abc_Clock(): 0;
+    abctime nTimeToStop   = Saig_ManBmcTimeToStop( pPars, nTimeToStopNG );
+
+    // set runtime limit
+    if ( nTimeToStop )
+    {
+        if ( p->pSat2 )
+            satoko_set_runtime_limit( p->pSat2, nTimeToStop );
+            else if ( p->pSat3 )
+            bmcg_sat_solver_set_runtime_limit( p->pSat3, nTimeToStop );
+        else
+            sat_solver_set_runtime_limit( p->pSat, nTimeToStop );
+    }
+    
+    int Lit, status, fUnfinished = 0, i, k;
+    unsigned * pInfo;
+    Aig_Obj_t * pObj;
+    Abc_Cex_t * pCexNew; 
+    Abc_Cex_t * pCexNew0;
+    
+    
+    for ( ; f < pPars->nFramesMax; f++ )
+    {
+        // stop BMC after exploring all reachable states
+        if ( !pPars->nFramesJump && Aig_ManRegNum(pAig) < 30 && f == (1 << Aig_ManRegNum(pAig)) )
+        {
+            Abc_Print( 1, "Stopping BMC because all 2^%d reachable states are visited.\n", Aig_ManRegNum(pAig) );
+            if ( p->pPars->fUseBridge )
+                Saig_ManForEachPo( pAig, pObj, i )
+                    if ( !(p->vCexes && Vec_PtrEntry(p->vCexes, i)) && !(p->pTime4Outs && p->pTime4Outs[i] == 0) ) // not SAT and not timed out
+                        Gia_ManToBridgeResult( stdout, 1, NULL, i );
+            RetValue = pPars->nFailOuts ? 0 : 1;
+            goto finish;
+        }
+        // stop BMC if all targets are solved
+        if ( pPars->fSolveAll && pPars->nFailOuts + pPars->nDropOuts >= Saig_ManPoNum(pAig) )
+        {
+            Abc_Print( 1, "Stopping BMC because all targets are disproved or timed out.\n" );
+            RetValue = pPars->nFailOuts ? 0 : 1;
+            goto finish;
+        }
+        // consider the next timeframe
+        if ( (RetValue == -1 || pPars->fSolveAll) && pPars->nStart == 0 && !nJumpFrame )
+            pPars->iFrame = f-1;
+        
+        // map nodes of this section
+        Vec_PtrPush( p->vId2Var, Vec_IntStartFull(p->nObjNums) );
+        Vec_PtrPush( p->vTerInfo, (pInfo = ABC_CALLOC(unsigned, p->nWordNum)) );
+/*
+        // cannot remove mapping of frame values for any timeframes
+        // because with constant propagation they may be needed arbitrarily far
+        if ( f > 2*Vec_VecSize(p->vSects) )
+        {
+            int iFrameOld = f - 2*Vec_VecSize( p->vSects );
+            void * pMemory = Vec_IntReleaseArray( Vec_PtrEntry(p->vId2Var, iFrameOld) );
+            ABC_FREE( pMemory );
+        } 
+*/
+        // prepare some nodes
+        Saig_ManBmcSetLiteral( p, Aig_ManConst1(pAig), f, 1 );
+        Saig_ManBmcSimInfoSet( pInfo, Aig_ManConst1(pAig), SAIG_TER_ONE );
+        Saig_ManForEachPi( pAig, pObj, i )
+            Saig_ManBmcSimInfoSet( pInfo, pObj, SAIG_TER_UND );
+        if ( f == 0 )
+        {
+            Saig_ManForEachLo( p->pAig, pObj, i )
+            {
+                Saig_ManBmcSetLiteral( p, pObj, 0, 0 );
+                Saig_ManBmcSimInfoSet( pInfo, pObj, SAIG_TER_ZER );
+            }
+        }
+        if ( (pPars->nStart && f < pPars->nStart) || (nJumpFrame && f < nJumpFrame) )
+            continue;
+        
+        // create CNF upfront
+        if ( pPars->fSolveAll )
+        {
+            Saig_ManForEachPo( pAig, pObj, i )
+            {
+                if ( i >= Saig_ManPoNum(pAig) )
+                    break;
+                // check for timeout
+                if ( pPars->nTimeOutGap && pPars->timeLastSolved && Abc_Clock() > pPars->timeLastSolved + pPars->nTimeOutGap * CLOCKS_PER_SEC )
+                {
+                    Abc_Print( 1, "Reached gap timeout (%d seconds).\n",  pPars->nTimeOutGap );
+                    goto finish;
+                }
+                if ( nTimeToStop && Abc_Clock() > nTimeToStop )
+                {
+                    if ( !pPars->fSilent )
+                        Abc_Print( 1, "Reached timeout (%d seconds).\n",  pPars->nTimeOut );
+                    goto finish;
+                }
+                // skip solved outputs
+                if ( p->vCexes && Vec_PtrEntry(p->vCexes, i) )
+                    continue;
+                // skip output whose time has run out
+                if ( p->pTime4Outs && p->pTime4Outs[i] == 0 )
+                    continue;
+                // add constraints for this output
+                clk2 = Abc_Clock();
+                Saig_ManBmcCreateCnf( p, pObj, f );
+                clkOther += Abc_Clock() - clk2;
+            }
+        }
+        // solve SAT
+        clk = Abc_Clock(); 
+        Saig_ManForEachPo( pAig, pObj, i )
+        {
+            if ( i >= Saig_ManPoNum(pAig) )
+                break;
+            // check for timeout
+            if ( pPars->nTimeOutGap && pPars->timeLastSolved && Abc_Clock() > pPars->timeLastSolved + pPars->nTimeOutGap * CLOCKS_PER_SEC )
+            {
+                Abc_Print( 1, "Reached gap timeout (%d seconds).\n",  pPars->nTimeOutGap );
+                goto finish;
+            }
+            if ( nTimeToStop && Abc_Clock() > nTimeToStop )
+            {
+                if ( !pPars->fSilent )
+                    Abc_Print( 1, "Reached timeout (%d seconds).\n",  pPars->nTimeOut );
+                goto finish;
+            }
+            if ( p->pPars->pFuncStop && p->pPars->pFuncStop(p->pPars->RunId) )
+            {
+                if ( !pPars->fSilent )
+                    Abc_Print( 1, "Bmc3 got callbacks.\n" );
+                goto finish;
+            }
+            // skip solved outputs
+            if ( p->vCexes && Vec_PtrEntry(p->vCexes, i) )
+                continue;
+            // skip output whose time has run out
+            if ( p->pTime4Outs && p->pTime4Outs[i] == 0 )
+                continue;
+            // add constraints for this output
+            clk2 = Abc_Clock();
+            Lit = Saig_ManBmcCreateCnf( p, pObj, f );
+            clkOther += Abc_Clock() - clk2;
+            // solve this output
+            fUnfinished = 0;
+            if ( p->pSat ) sat_solver_compress( p->pSat );
+            if ( p->pTime4Outs )
+            {
+                assert( p->pTime4Outs[i] > 0 );
+                clkOne = Abc_Clock();
+                if ( p->pSat2 )
+                    satoko_set_runtime_limit( p->pSat2, p->pTime4Outs[i] + Abc_Clock() );
+                else if ( p->pSat3 )
+                    bmcg_sat_solver_set_runtime_limit( p->pSat3, p->pTime4Outs[i] + Abc_Clock() );
+                else
+                    sat_solver_set_runtime_limit( p->pSat, p->pTime4Outs[i] + Abc_Clock() );
+            }
+            clk2 = Abc_Clock();
+            status = Saig_ManCallSolver( p, Lit );
+            clkSatRun = Abc_Clock() - clk2;
+            if ( pLogFile )
+                fprintf( pLogFile, "Frame %5d  Output %5d  Time(ms) %8d %8d\n", f, i, 
+                    Lit < 2 ? 0 : (int)(clkSatRun * 1000 / CLOCKS_PER_SEC),
+                    Lit < 2 ? 0 : Abc_MaxInt(0, Abc_MinInt(pPars->nTimeOutOne, pPars->nTimeOutOne - (int)((p->pTime4Outs[i] - clkSatRun) * 1000 / CLOCKS_PER_SEC))) );
+            if ( p->pTime4Outs )
+            {
+                abctime timeSince = Abc_Clock() - clkOne;
+                assert( p->pTime4Outs[i] > 0 );
+                p->pTime4Outs[i] = (p->pTime4Outs[i] > timeSince) ? p->pTime4Outs[i] - timeSince : 0;
+                if ( p->pTime4Outs[i] == 0 && status != l_True )
+                    pPars->nDropOuts++;
+            }
+            if ( status == l_False )
+            {
+                nTimeUnsat += clkSatRun;
+                if ( Lit != 0 )
+                {
+                    // add final unit clause
+                    Lit = lit_neg( Lit );
+                    if ( p->pSat2 )
+                        status = satoko_add_clause( p->pSat2, &Lit, 1 );
+                    else if ( p->pSat3 )
+                        status = bmcg_sat_solver_addclause( p->pSat3, &Lit, 1 );
+                    else
+                        status = sat_solver_addclause( p->pSat, &Lit, &Lit + 1 );
+                    assert( status );
+                    // add learned units
+                    if ( p->pSat )
+                    {
+                        for ( k = 0; k < veci_size(&p->pSat->unit_lits); k++ )
+                        {
+                            Lit = veci_begin(&p->pSat->unit_lits)[k];
+                            status = sat_solver_addclause( p->pSat, &Lit, &Lit + 1 );
+                            assert( status );
+                        }
+                        veci_resize(&p->pSat->unit_lits, 0);
+                        // propagate units
+                        sat_solver_compress( p->pSat );
+                    }
+                }
+                if ( p->pPars->fUseBridge )
+                    Gia_ManReportProgress( stdout, i, f );
+            }
+            else if ( status == l_True )
+            {
+                nTimeSat += clkSatRun;
+                RetValue = 0;
+                fFirst = 0;
+                if ( !pPars->fSolveAll )
+                {
+                    if ( pPars->fVerbose )
+                    {
+                        Abc_Print( 1, "%4d %s : ", f,  fUnfinished ? "-" : "+" );
+                        Abc_Print( 1, "Var =%8.0f. ",  (double)p->nSatVars );
+                        Abc_Print( 1, "Cla =%9.0f. ",  (double)(p->pSat ? p->pSat->stats.clauses   : p->pSat3 ? bmcg_sat_solver_clausenum(p->pSat3)   : satoko_clausenum(p->pSat2)) );
+                        Abc_Print( 1, "Conf =%7.0f. ", (double)(p->pSat ? p->pSat->stats.conflicts : p->pSat3 ? bmcg_sat_solver_conflictnum(p->pSat3) : satoko_conflictnum(p->pSat2)) );
+//                        Abc_Print( 1, "Imp =%10.0f. ", (double)p->pSat->stats.propagations );
+//                        Abc_Print( 1, "Uni =%7.0f. ",(double)(p->pSat ? sat_solver_count_assigned(p->pSat) : 0) );
+//                        ABC_PRT( "Time", Abc_Clock() - clk );
+                        Abc_Print( 1, "Learn =%7.0f. ", (double)(p->pSat ? p->pSat->stats.learnts : p->pSat3 ? bmcg_sat_solver_learntnum(p->pSat3) : satoko_learntnum(p->pSat2)) );
+                        Abc_Print( 1, "%4.0f MB",      4.25*(f+1)*p->nObjNums /(1<<20) );
+                        Abc_Print( 1, "%4.0f MB",      1.0*(p->pSat ? sat_solver_memory(p->pSat) : 0)/(1<<20) );
+                        Abc_Print( 1, "%9.2f sec  ",   (float)(Abc_Clock() - clkTotal)/(float)(CLOCKS_PER_SEC) );
+//                        Abc_Print( 1, "\n" );
+//                        ABC_PRMn( "Id2Var", (f+1)*p->nObjNums*4 );
+//                        ABC_PRMn( "SAT", 42 * p->pSat->size + 16 * (int)p->pSat->stats.clauses + 4 * (int)p->pSat->stats.clauses_literals );
+//                        Abc_Print( 1, "S =%6d. ", p->nBufNum );
+//                        Abc_Print( 1, "D =%6d. ", p->nDupNum );
+                        Abc_Print( 1, "\n" );
+                        fflush( stdout );
+                    }
+                    ABC_FREE( pAig->pSeqModel );
+                    pAig->pSeqModel = Saig_ManGenerateCex( p, f, i );
+                    goto finish;
+                }
+                pPars->nFailOuts++;
+                if ( !pPars->fNotVerbose )
+                    Abc_Print( 1, "Output %*d was asserted in frame %2d (solved %*d out of %*d outputs).\n",  
+                        nOutDigits, i, f, nOutDigits, pPars->nFailOuts, nOutDigits, Saig_ManPoNum(pAig) );
+                if ( p->vCexes == NULL )
+                    p->vCexes = Vec_PtrStart( Saig_ManPoNum(pAig) );
+                pCexNew = (p->pPars->fUseBridge || pPars->fStoreCex) ? Saig_ManGenerateCex( p, f, i ) : (Abc_Cex_t *)(ABC_PTRINT_T)1;
+                pCexNew0 = NULL;
+                if ( p->pPars->fUseBridge )
+                {
+                    Gia_ManToBridgeResult( stdout, 0, pCexNew, pCexNew->iPo );
+                    //Abc_CexFree( pCexNew );
+                    pCexNew0 = pCexNew; 
+                    pCexNew = (Abc_Cex_t *)(ABC_PTRINT_T)1;
+                }
+                Vec_PtrWriteEntry( p->vCexes, i, Abc_CexDup(pCexNew, Saig_ManRegNum(pAig)) ); 
+                if ( pPars->pFuncOnFail && pPars->pFuncOnFail(i, pPars->fStoreCex ? (Abc_Cex_t *)Vec_PtrEntry(p->vCexes, i) : NULL) )
+                {
+                    Abc_CexFreeP( &pCexNew0 );
+                    Abc_Print( 1, "Quitting due to callback on fail.\n" );
+                    goto finish;
+                }
+                // reset the timeout
+                pPars->timeLastSolved = Abc_Clock();
+                nTimeToStop = Saig_ManBmcTimeToStop( pPars, nTimeToStopNG );
+                if ( nTimeToStop )
+                {
+                    if ( p->pSat2 )
+                        satoko_set_runtime_limit( p->pSat2, nTimeToStop );
+                    else if ( p->pSat3 )
+                        bmcg_sat_solver_set_runtime_limit( p->pSat3, nTimeToStop );
+                    else
+                        sat_solver_set_runtime_limit( p->pSat, nTimeToStop );
+                }
+
+                // check if other outputs failed under the same counter-example
+                Saig_ManForEachPo( pAig, pObj, k )
+                {
+                    Abc_Cex_t * pCexDup;
+                    if ( k >= Saig_ManPoNum(pAig) )
+                        break;
+                    // skip solved outputs
+                    if ( p->vCexes && Vec_PtrEntry(p->vCexes, k) )
+                        continue;
+                    // check if this output is solved
+                    Lit = Saig_ManBmcCreateCnf( p, pObj, f );
+                    if ( p->pSat2 )
+                    {
+                        if ( satoko_read_cex_varvalue(p->pSat2, lit_var(Lit)) == Abc_LitIsCompl(Lit) )
+                            continue;
+                    }
+                    else if ( p->pSat3 )
+                    {
+                        if ( bmcg_sat_solver_read_cex_varvalue(p->pSat3, lit_var(Lit)) == Abc_LitIsCompl(Lit) )
+                            continue;
+                    }
+                    else
+                    {
+                        if ( sat_solver_var_value(p->pSat, lit_var(Lit)) == Abc_LitIsCompl(Lit) )
+                            continue;
+                    }
+                    // write entry
+                    pPars->nFailOuts++;
+                    if ( !pPars->fNotVerbose )
+                        Abc_Print( 1, "Output %*d was asserted in frame %2d (solved %*d out of %*d outputs).\n",  
+                            nOutDigits, k, f, nOutDigits, pPars->nFailOuts, nOutDigits, Saig_ManPoNum(pAig) );
+                    // report to the bridge
+                    if ( p->pPars->fUseBridge )
+                    {
+                        // set the output number
+                        pCexNew0->iPo = k;
+                        Gia_ManToBridgeResult( stdout, 0, pCexNew0, pCexNew0->iPo );
+                    }
+                    // remember solved output
+                    //Vec_PtrWriteEntry( p->vCexes, k, Abc_CexDup(pCexNew, Saig_ManRegNum(pAig)) );
+                    pCexDup = Abc_CexDup(pCexNew, Saig_ManRegNum(pAig));
+                    pCexDup->iPo = k;
+                    Vec_PtrWriteEntry( p->vCexes, k, pCexDup );
+                }
+                Abc_CexFreeP( &pCexNew0 );
+                Abc_CexFree( pCexNew );
+            }
+            else 
+            {
+                nTimeUndec += clkSatRun;
+                assert( status == l_Undef );
+                if ( pPars->nFramesJump )
+                {
+                    pPars->nConfLimit = pPars->nConfLimitJump;
+                    nJumpFrame = f + pPars->nFramesJump;
+                    fUnfinished = 1;
+                    break;
+                }
+                if ( p->pTime4Outs == NULL )
+                    goto finish;
+            }
+        }
+        if ( pPars->fVerbose ) 
+        {
+            if ( fFirst == 1 && f > 0 && (p->pSat ? p->pSat->stats.conflicts : p->pSat3 ? bmcg_sat_solver_conflictnum(p->pSat3) : satoko_conflictnum(p->pSat2)) > 1 )
+            {
+                fFirst = 0;
+//                Abc_Print( 1, "Outputs of frames up to %d are trivially UNSAT.\n", f );
+            }
+            Abc_Print( 1, "%4d %s : ", f, fUnfinished ? "-" : "+" );
+            Abc_Print( 1, "Var =%8.0f. ", (double)p->nSatVars );
+//            Abc_Print( 1, "Used =%8.0f. ", (double)sat_solver_count_usedvars(p->pSat) );
+            Abc_Print( 1, "Cla =%9.0f. ", (double)(p->pSat ? p->pSat->stats.clauses   : p->pSat3 ? bmcg_sat_solver_clausenum(p->pSat3)   : satoko_clausenum(p->pSat2))   );
+            Abc_Print( 1, "Conf =%7.0f. ",(double)(p->pSat ? p->pSat->stats.conflicts : p->pSat3 ? bmcg_sat_solver_conflictnum(p->pSat3) : satoko_conflictnum(p->pSat2)) );
+//            Abc_Print( 1, "Imp =%10.0f. ", (double)p->pSat->stats.propagations );
+//            Abc_Print( 1, "Uni =%7.0f. ", (double)(p->pSat ? sat_solver_count_assigned(p->pSat) : 0) );
+            Abc_Print( 1, "Learn =%7.0f. ", (double)(p->pSat ? p->pSat->stats.learnts : p->pSat3 ? bmcg_sat_solver_learntnum(p->pSat3) : satoko_learntnum(p->pSat2)) );
+            if ( pPars->fSolveAll )
+                Abc_Print( 1, "CEX =%5d. ", pPars->nFailOuts );
+            if ( pPars->nTimeOutOne )
+                Abc_Print( 1, "T/O =%4d. ", pPars->nDropOuts );
+//            ABC_PRT( "Time", Abc_Clock() - clk );
+//            Abc_Print( 1, "%4.0f MB",     4.0*Vec_IntSize(p->vVisited) /(1<<20) );
+            Abc_Print( 1, "%4.0f MB",     4.0*(f+1)*p->nObjNums /(1<<20) );
+            Abc_Print( 1, "%4.0f MB",     1.0*(p->pSat ? sat_solver_memory(p->pSat) : 0)/(1<<20) );
+//            Abc_Print( 1, " %6d %6d ",   p->nLitUsed, p->nLitUseless );
+            Abc_Print( 1, "%9.2f sec ",   1.0*(Abc_Clock() - clkTotal)/CLOCKS_PER_SEC );
+//            Abc_Print( 1, "\n" );
+//            ABC_PRMn( "Id2Var", (f+1)*p->nObjNums*4 );
+//            ABC_PRMn( "SAT", 42 * p->pSat->size + 16 * (int)p->pSat->stats.clauses + 4 * (int)p->pSat->stats.clauses_literals );
+//            Abc_Print( 1, "Simples = %6d. ", p->nBufNum );
+//            Abc_Print( 1, "Dups = %6d. ", p->nDupNum );
+            Abc_Print( 1, "\n" );
+            fflush( stdout );
+        }
+    }
+    // consider the next timeframe
+    if ( nJumpFrame && pPars->nStart == 0 )
+        pPars->iFrame = nJumpFrame - pPars->nFramesJump;
+    else if ( RetValue == -1 && pPars->nStart == 0 )
+        pPars->iFrame = f-1;
+//ABC_PRT( "CNF generation runtime", clkOther );
+finish:
+    if ( pPars->fVerbose )
+    {
+        Abc_Print( 1, "Runtime:  " );
+        Abc_Print( 1, "CNF = %.1f sec (%.1f %%)  ",   1.0*clkOther/CLOCKS_PER_SEC,   100.0*clkOther/(Abc_Clock() - clkTotal)   );
+        Abc_Print( 1, "UNSAT = %.1f sec (%.1f %%)  ", 1.0*nTimeUnsat/CLOCKS_PER_SEC, 100.0*nTimeUnsat/(Abc_Clock() - clkTotal) );
+        Abc_Print( 1, "SAT = %.1f sec (%.1f %%)  ",   1.0*nTimeSat/CLOCKS_PER_SEC,   100.0*nTimeSat/(Abc_Clock() - clkTotal)   );
+        Abc_Print( 1, "UNDEC = %.1f sec (%.1f %%)",   1.0*nTimeUndec/CLOCKS_PER_SEC, 100.0*nTimeUndec/(Abc_Clock() - clkTotal) );
+        Abc_Print( 1, "\n" );
+    }
+    // Saig_Bmc3ManStop( p );
+    fflush( stdout );
+    if ( pLogFile )
+        fclose( pLogFile );
+    
+    if (pPars->pData != NULL) {
+        // total new frame explored in this call
+        if (RetValue == -1) {
+            pPars->pData->nFrame = f - pPars->nStart; // exclude last frame not explored completly due to time out
+        } else {
+            pPars->pData->nFrame = f - pPars->nStart + 1; // included last frame because SAT/UNSAT result in last frame
+        }
+    }
+
+    // SAVE BMC STATE
+    state->RetValue = RetValue;
+    state->fFirst = fFirst;
+    state->nJumpFrame = nJumpFrame;
+    state->f = f;
+    
+    return RetValue;
+}
+
 ////////////////////////////////////////////////////////////////////////
 ///                       END OF FILE                                ///
 ////////////////////////////////////////////////////////////////////////
