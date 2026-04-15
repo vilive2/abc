@@ -204,11 +204,17 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
             // nSat++;
             pMan.solved++;
             // Vec_PtrDrop(Lp, 0);
+            Abc_NtkDelete(pNtk);
+            deleteBmcState(bmcstate[best->propNum]);
+            Aig_ManStop(aigman[best->propNum]);
         } else if (status == ABC_UNSAT) {
             best->status = POEM_UNSAT;
             // nUnsat++;
             pMan.solved++;
             // Vec_PtrDrop(Lp, 0);
+            Abc_NtkDelete(pNtk);
+            deleteBmcState(bmcstate[best->propNum]);
+            Aig_ManStop(aigman[best->propNum]);
         } else if (status == ABC_UNDEC) {
             // Vec_PtrPush( unk_goals, obj);
             pq.push(best);
@@ -239,6 +245,8 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
     finish:
     for(int i = 0 ; i < N ; i++) {
+        if (props[i]->status != POEM_UNDEC) continue;
+
         pNtk = (Abc_Ntk_t *)props[i]->ntk;
         Abc_NtkDelete(pNtk);
         deleteBmcState (bmcstate[i]);
