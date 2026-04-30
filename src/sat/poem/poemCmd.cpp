@@ -41,7 +41,7 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
     int c;
     ParPoemSetDefaultParams( pPars );
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "TLsvVh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "TLMsvVh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -54,6 +54,16 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
             pPars->nTimeOut = atoi(argv[globalUtilOptind]);
             globalUtilOptind++;
             if ( pPars->nTimeOut < 0 )
+                goto usage;
+            break;
+        case 'M':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-M\" should be followed by an integer.\n" );
+                goto usage;
+            }
+            pPars->nMemGB = atoi(argv[globalUtilOptind]);
+            if (pPars->nMemGB < 0) 
                 goto usage;
             break;
         case 's':
@@ -102,9 +112,10 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
     return 0;
 
 usage:
-    Abc_Print( -2, "usage: poem [-T num] [-vsh]\n" );
+    Abc_Print( -2, "usage: poem [-T num] [-M num] [-vsh]\n" );
     Abc_Print( -2, "\t         performs bounded model checking with dynamic unrolling\n" );
     Abc_Print( -2, "\t-T num : runtime limit, in seconds [default = %d]\n",                       pPars->nTimeOut );
+    Abc_Print( -2, "\t-M num : memory available, in GB [default = %d]\n",                       pPars->nMemGB );
     Abc_Print( -2, "\t-v     : toggle verbose [default = %s]\n",                           pPars->fVerbose? "yes": "no" );
     Abc_Print( -2, "\t-h     : print the command usage\n");
     Abc_Print( -2, "\t-s     : static ordering\n");

@@ -61,6 +61,7 @@ void print_log (PoemMan *pMan) {
     printf("iter. %d, ", pMan->it);
     printf("rem. %.2f sec., ", (float)(pMan->clkRem) / (float)CLOCKS_PER_SEC);
     printf("timeLimit %lld sec., ", (0LL + pMan->clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC);
+    printf("memoryLimit %.2f MB, ", (1.0*pMan->memLimit)/(1024*1024));
     printf("minTime %.2f sec., ", (float)pMan->minClk / (float)(CLOCKS_PER_SEC));
     printf("maxTime %.2f sec., ", (float)pMan->maxClk / (float)CLOCKS_PER_SEC);
     printf("maxFrame %d, ", pMan->maxFrame);

@@ -36,6 +36,7 @@ static inline void PrintMem(const char *tag)
 void ParPoemSetDefaultParams ( PoemPar_t *pPars) {
     assert (pPars != NULL);
     pPars->nTimeOut = ABC_INT_MAX;
+    pPars->nMemGB = 0;
     pPars->fVerbose = 0;
     pPars->staticOrdering = 0;
 }
@@ -184,7 +185,8 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         pBmcPars->pData->propNum = best->propNum; // Just to Debug ,TODO: Remove
         // pBmcPars->nStart = 0;
         pBmcPars->nTimeOut = (0LL + pMan.clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
-        pBmcPars->nMemLimit = (1LL*128*1024*1024*1024) / (N - pMan.solved);
+        pBmcPars->nMemLimit = (1LL*pPars->nMemGB*1024*1024*1024) / (N - pMan.solved);
+        pMan.memLimit = pBmcPars->nMemLimit;
         // pBmcPars->nConfLimit = conflictBudget;
         // pBmcPars->fSilent = 1;
         pBmcPars->iFrame = -1;
