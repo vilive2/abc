@@ -113,6 +113,7 @@ struct Saig_ParBmc_t_
     int         nFramesMax;     // maximum number of timeframes 
     int         nConfLimit;     // maximum number of conflicts at a node
     int         nPropLimit;
+    size_t      nMemLimit;
     int         nConfLimitJump; // maximum number of conflicts after jumping
     int         nFramesJump;    // the number of tiemframes to jump
     int         nTimeOut;       // approximate timeout in seconds
@@ -239,7 +240,7 @@ extern int               Saig_ManBmcScalable( Aig_Man_t * pAig, Saig_ParBmc_t * 
 extern int               Saig_ManBmcScalableContinue( BmcState *state, Aig_Man_t * pAig, Saig_ParBmc_t * pPars );
 extern BmcState *        createBmcState (Aig_Man_t * pAig, Saig_ParBmc_t * pPars);
 extern void              deleteBmcState (BmcState *state);
-extern void              resetBmcState (BmcState * state, Aig_Man_t * pAig, Saig_ParBmc_t * pPars);
+extern void              resetBmcState (BmcState * state, Aig_Man_t * pAig, Saig_ParBmc_t * pPars, size_t mem_limit);
 /*=== bmcBmcAnd.c ==========================================================*/
 extern int               Gia_ManBmcPerform( Gia_Man_t * p, Bmc_AndPar_t * pPars );
 /*=== bmcCexCare.c ==========================================================*/

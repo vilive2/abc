@@ -1339,6 +1339,7 @@ void Saig_ParBmcSetDefaultParams( Saig_ParBmc_t * p )
     p->nFramesMax     =     0;    // maximum number of timeframes 
     p->nConfLimit     =     0;    // maximum number of conflicts at a node
     p->nPropLimit     =     0;
+    p->nMemLimit      =     0;
     p->nConfLimitJump =     0;    // maximum number of conflicts after jumping
     p->nFramesJump    =     0;    // the number of tiemframes to jump
     p->nTimeOut       =     0;    // approximate timeout in seconds
@@ -2012,7 +2013,9 @@ BmcState * createBmcState (Aig_Man_t * pAig, Saig_ParBmc_t * pPars) {
     return state;
 }
 
-void resetBmcState (BmcState * state, Aig_Man_t * pAig, Saig_ParBmc_t * pPars) {
+void resetBmcState (BmcState * state, Aig_Man_t * pAig, Saig_ParBmc_t * pPars, size_t mem_limit) {
+    if (mem_limit != 0 && bmcg_sat_solver_mem_used (state->p->pSat3) < mem_limit) return;
+
     Saig_Bmc3ManStop( state->p );
     if (state->pLogFile) fclose (state->pLogFile);
     
@@ -2447,6 +2450,9 @@ int Saig_ManBmcScalableContinue( BmcState *state, Aig_Man_t * pAig, Saig_ParBmc_
             Abc_Print( 1, "\n" );
             fflush( stdout );
         }
+
+        if (pPars->nMemLimit && bmcg_sat_solver_mem_used (p->pSat3) > pPars->nMemLimit) goto finish;
+
     }
     // consider the next timeframe
     if ( nJumpFrame && pPars->nStart == 0 )
@@ -2464,6 +2470,9 @@ finish:
         Abc_Print( 1, "UNDEC = %.1f sec (%.1f %%)",   1.0*nTimeUndec/CLOCKS_PER_SEC, 100.0*nTimeUndec/(Abc_Clock() - clkTotal) );
         Abc_Print( 1, "\n" );
     }
+
+    Abc_Print( 1, "\nprop: %d, Mem: %.2f MB\n",pPars->pData->propNum, 1.0*bmcg_sat_solver_mem_used( p->pSat3 ) / (1024*1024));
+
     // Saig_Bmc3ManStop( p );
     fflush( stdout );
     if ( pLogFile )

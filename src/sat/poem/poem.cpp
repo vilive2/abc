@@ -184,6 +184,7 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         pBmcPars->pData->propNum = best->propNum; // Just to Debug ,TODO: Remove
         // pBmcPars->nStart = 0;
         pBmcPars->nTimeOut = (0LL + pMan.clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
+        pBmcPars->nMemLimit = (1LL*128*1024*1024*1024) / (N - pMan.solved);
         // pBmcPars->nConfLimit = conflictBudget;
         // pBmcPars->fSilent = 1;
         pBmcPars->iFrame = -1;
@@ -218,6 +219,7 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         } else if (status == ABC_UNDEC) {
             // Vec_PtrPush( unk_goals, obj);
             pq.push(best);
+            resetBmcState (bmcstate[best->propNum], aigman[best->propNum], pBmcPars, pBmcPars->nMemLimit);
         } else {
             goto finish;
         }
