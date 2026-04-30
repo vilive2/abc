@@ -143,6 +143,7 @@ public:
     virtual void garbageCollect(); // virtuality causes segfault for some reason
     void    checkGarbage(double gf);
     void    checkGarbage();
+    virtual size_t memUsed() const;
 
 
 

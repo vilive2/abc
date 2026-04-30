@@ -111,7 +111,7 @@ extern void              bmcg_sat_solver_start_new_round( bmcg_sat_solver * s );
 extern void              bmcg_sat_solver_mark_cone( bmcg_sat_solver * s, int var );
 extern void              bmcg_sat_solver_read_dimacs( bmcg_sat_solver * s, char * pFileName);
 extern void              bmcg_sat_solver_set_pars (bmcg_sat_solver *s, Glucose_Pars *pPars);
-
+extern size_t            bmcg_sat_solver_mem_used (bmcg_sat_solver* s);
 
 extern void              Glucose_SolveCnf( char * pFilename, Glucose_Pars * pPars, int fDumpCnf );
 extern int               Glucose_SolveAig( Gia_Man_t * p, Glucose_Pars * pPars );

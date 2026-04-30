@@ -39,6 +39,8 @@ public:
     typedef T Key;
 
     Queue() : buf(1), first(0), end(0) {}
+    
+    size_t memUsed() const { return buf.memUsed(); }
 
     void clear (bool dealloc = false) { buf.clear(dealloc); buf.growTo(1); first = end = 0; }
     int  size  () const { return (end >= first) ? end - first : end - first + buf.size(); }

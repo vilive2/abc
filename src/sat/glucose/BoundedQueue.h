@@ -45,6 +45,7 @@ public:
  bqueue(void) : first(0), last(0), sumofqueue(0), maxsize(0), queuesize(0),expComputed(false) { } 
     
     void initSize(int size) {growTo(size);exp = 2.0/(size+1);} // Init size of bounded size queue
+    size_t memUsed() const { return elems.memUsed(); }
     
     void push(T x) {
       expComputed = false;

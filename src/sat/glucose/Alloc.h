@@ -54,6 +54,7 @@ class RegionAllocator
             ::free(memory);
     }
 
+    size_t memUsed() const { return cap * sizeof(T); }
 
     uint32_t size      () const      { return sz; }
     uint32_t wasted    () const      { return wasted_; }

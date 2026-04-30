@@ -69,6 +69,7 @@ class SimpSolver : public Solver {
     //
     virtual void reset();
     virtual void garbageCollect();
+    size_t memUsed() const override;
 
 
     // Generate a (possibly simplified) DIMACS file:

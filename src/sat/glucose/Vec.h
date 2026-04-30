@@ -70,6 +70,7 @@ public:
     void     growTo   (int size);
     void     growTo   (int size, const T& pad);
     void     clear    (bool dealloc = false);
+    size_t   memUsed  () const { return cap * sizeof (T); }
 
     // Stack interface:
     void     push  (void)              { if (sz == cap) capacity(sz+1); new (&data[sz]) T(); sz++; }

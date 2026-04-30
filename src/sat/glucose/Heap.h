@@ -143,6 +143,9 @@ class Heap {
             indices[heap[i]] = -1;
         heap.clear(dealloc); 
     }
+    size_t memUsed() const {
+        return (heap.capacity() + indices.capacity()) * sizeof (int);
+    }
 };
 
 

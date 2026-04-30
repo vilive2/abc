@@ -279,6 +279,9 @@ int bmcg_sat_solver_restartnum (bmcg_sat_solver* s) {
     return ((Gluco::SimpSolver*)s)->starts;
 }
 
+size_t bmcg_sat_solver_mem_used (bmcg_sat_solver* s) {
+    return((Gluco::SimpSolver*)s)->memUsed();
+}
 
 
 int bmcg_sat_solver_minimize_assumptions( bmcg_sat_solver * s, int * plits, int nlits, int pivot )

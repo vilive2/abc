@@ -1500,4 +1500,44 @@ void Solver::reset()
     initialPositions.clear(false);
 }
 
+size_t Solver::memUsed() const
+{
+  size_t total = sizeof (*this);
+
+  total += user_vec.memUsed();
+  total += user_lits.memUsed();
+  total += model.memUsed();
+  total += conflict.memUsed();
+  total += activity.memUsed();
+
+  total += watches.memUsed();
+  total += watchesBin.memUsed();
+
+  total += clauses.memUsed();
+  // for (int i = 0 ; i < clauses.size() ; i++) total += clauses[i].memUsed();
+  total += learnts.memUsed();
+  // for (int i = 0 ; i < learnts.size() ; i++) total += learnts[i].memUsed();
+
+  total += assigns.memUsed();
+  total += polarity.memUsed();
+  total += decision.memUsed();
+  total += trail.memUsed();
+  total += nbpos.memUsed();
+  total += trail_lim.memUsed();
+  total += vardata.memUsed ();
+  total += assumptions.memUsed();
+  total += order_heap.memUsed();
+  total += permDiff.memUsed();
+  total += trailQueue.memUsed();
+  total += lbdQueue.memUsed();
+  total += seen.memUsed();
+  total += analyze_stack.memUsed();
+  total += analyze_toclear.memUsed();
+  total += add_tmp.memUsed();
+  total += assumptionPositions.memUsed();
+  total += initialPositions.memUsed();
+
+  return total;
+}
+
 ABC_NAMESPACE_IMPL_END

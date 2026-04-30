@@ -773,4 +773,21 @@ void SimpSolver::reset()
     remove_satisfied      = false;
 }
 
+size_t SimpSolver::memUsed() const
+{
+    size_t total = Solver::memUsed();
+
+    total += sizeof (*this) - sizeof(Solver);
+    total += elimclauses.memUsed();
+    total += touched.memUsed();
+    total += occurs.memUsed();
+    total += n_occ.memUsed();
+    total += elim_heap.memUsed();
+    total += subsumption_queue.memUsed();
+    total += frozen.memUsed();
+    total += eliminated.memUsed();
+
+    return total;
+}
+
 ABC_NAMESPACE_IMPL_END

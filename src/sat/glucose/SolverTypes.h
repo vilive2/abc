@@ -316,6 +316,16 @@ class OccLists
             dirties.shrink_(dirties.size());
         }
     }
+
+    size_t memUsed() const {
+        size_t total = 0;
+        total += occs.capacity() * sizeof (Vec);
+        for (int i = 0 ; i < occs.size() ; i++) total += occs[i].memUsed();
+        total += dirty.capacity() * sizeof (char);
+        total += dirties.capacity() * sizeof (Idx);
+
+        return total;
+    }
 };
 
 
