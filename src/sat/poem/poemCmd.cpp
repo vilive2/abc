@@ -279,7 +279,7 @@ int Abc_CommandPoem0( Abc_Frame_t * pAbc, int argc, char ** argv )
     return 0;
 
 usage:
-    Abc_Print( -2, "usage: poem1 [-T num] [-vh]\n" );
+    Abc_Print( -2, "usage: poem0 [-T num] [-vh]\n" );
     Abc_Print( -2, "\t         performs bounded model checking with each property time = T / #property \n" );
     Abc_Print( -2, "\t-T num : runtime limit, in seconds [default = %d]\n",                       pPars->nTimeOut );
     Abc_Print( -2, "\t-v     : toggle verbose [default = %s]\n",                           pPars->fVerbose? "yes": "no" );

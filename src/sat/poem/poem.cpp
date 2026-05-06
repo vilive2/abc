@@ -147,6 +147,7 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     std::vector<Aig_Man_t *> aigman(N);
     // std::vector<Saig_ParBmc_t *> bmcpar(N);
     for(int i = 0 ; i < N ; i++) {
+        pMan.objs[i].clkBudget = CLOCKS_PER_SEC;
         pq.push(&(pMan.objs[i]));
         props.push_back(&(pMan.objs[i]));
         aigman[i] = Abc_NtkToDar( (Abc_Ntk_t *)pMan.objs[i].ntk, 0, 1 );
@@ -160,7 +161,11 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         PoemObj_t* best = pq.top();
         pq.pop();
         pNtk = (Abc_Ntk_t *)(best->ntk);
-
+        
+        pMan.clkBudget = std::min(best->clkBudget, pMan.clkRem);
+        best->clkBudget *= 2;
+        pMan.memLimit = pBmcPars->nMemLimit = (1LL*pPars->nMemGB*1024*1024*1024) / (N - pMan.solved);
+    
         if (pPars->fVerbose) {
             printf("\rprop: %d ", best->propNum);
 
@@ -174,19 +179,12 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
             continue;
         }
 
-
-        abctime clkDiff = pMan.maxClk - best->pData->nClk;
-        pMan.clkBudget = clkDiff > pMan.clkBudget ? clkDiff : pMan.maxClk - pMan.minClk < pMan.clkBudget ? 2*pMan.clkBudget : pMan.clkBudget;
-        
-        pMan.clkBudget = pMan.clkBudget < pMan.clkRem ? pMan.clkBudget : pMan.clkRem;
         
             
         pBmcPars->nStart = best->pData->nFrame;
         pBmcPars->pData->propNum = best->propNum; // Just to Debug ,TODO: Remove
         // pBmcPars->nStart = 0;
         pBmcPars->nTimeOut = (0LL + pMan.clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
-        pBmcPars->nMemLimit = (1LL*pPars->nMemGB*1024*1024*1024) / (N - pMan.solved);
-        pMan.memLimit = pBmcPars->nMemLimit;
         // pBmcPars->nConfLimit = conflictBudget;
         // pBmcPars->fSilent = 1;
         pBmcPars->iFrame = -1;
@@ -226,17 +224,8 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
             goto finish;
         }
 
-
-
-        pMan.minClk = ABC_INFINITY;
-        pMan.maxClk = -1;
-        for (int i = 0 ; i < N ; i++)  {
-            if (props[i]->status == POEM_UNDEC) {
-                pMan.minClk = std::min(pMan.minClk, props[i]->pData->nClk);
-                pMan.maxClk = std::max(pMan.maxClk, props[i]->pData->nClk);
-            }
-            pMan.maxFrame = std::max(pMan.maxFrame, (int)(props[i]->pData->nFrame));
-        }
+        pMan.maxClk = std::max(pMan.maxClk, best->pData->nClk);
+        pMan.maxFrame = std::max(pMan.maxFrame, (int)(best->pData->nFrame));
 
         if ( Abc_Clock() > pMan.nTimeToStop )
             break;

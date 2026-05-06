@@ -51,6 +51,7 @@ typedef struct {
     unsigned int ntkSize;
     int status;
     int propNum;
+    abctime clkBudget;
 } PoemObj_t;
 
 typedef struct {
