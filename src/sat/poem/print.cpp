@@ -24,7 +24,7 @@ void PrintStat( Vec_Ptr_t *objs, FILE *fp) {
     }
 }
 
-void print_stat(std::vector<PoemObj_t*> &props) {
+void print_stat(std::vector<PoemObj_t*> &props, char *logFilename = NULL, char *ntkName = NULL) {
     int N = props.size();
     int S = 0;
     float avg_frame = 0;
@@ -54,6 +54,18 @@ void print_stat(std::vector<PoemObj_t*> &props) {
 
     printf("\n%-10s %-15s %-22s %-11s %-16s\n", "Solved", "Time(solved)", "Avg. Frame(unsolved)", "Max Frame", "Time(unsolved)");
     printf("%-10d %-15.2f %-22.2f %-11d %-16.2f\n", S, time_solved, avg_frame, max_frame, time_unsolved);
+
+    if (logFilename) {
+        FILE *fp = fopen(logFilename, "a");
+        if (fp == NULL) {
+            printf("Error opening file : %s\n", logFilename);
+            return;
+        }
+
+        fprintf(fp, "%s, %d, %.2f, %.2f, %d, %.2f\n", ntkName, S, time_solved, avg_frame, max_frame, time_unsolved);
+
+        fclose (fp);
+    }
 }
 
 void print_log (PoemMan *pMan) {

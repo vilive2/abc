@@ -41,7 +41,7 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
     int c;
     ParPoemSetDefaultParams( pPars );
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "TLMsvVh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "TMLsvVh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -65,6 +65,15 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
             pPars->nMemGB = atoi(argv[globalUtilOptind]);
             if (pPars->nMemGB < 0) 
                 goto usage;
+            break;
+        case 'L':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-L\" should be followed by a filename.\n" );
+                goto usage;
+            }
+            pPars->logFilename = argv[globalUtilOptind];
+            globalUtilOptind++;
             break;
         case 's':
             pPars->staticOrdering = 1;
@@ -116,6 +125,7 @@ usage:
     Abc_Print( -2, "\t         performs bounded model checking with dynamic unrolling\n" );
     Abc_Print( -2, "\t-T num : runtime limit, in seconds [default = %d]\n",                       pPars->nTimeOut );
     Abc_Print( -2, "\t-M num : memory available, in GB [default = %d]\n",                       pPars->nMemGB );
+    Abc_Print( -2, "\t-L file : log file name [default = %s]\n",                       pPars->logFilename );
     Abc_Print( -2, "\t-v     : toggle verbose [default = %s]\n",                           pPars->fVerbose? "yes": "no" );
     Abc_Print( -2, "\t-h     : print the command usage\n");
     Abc_Print( -2, "\t-s     : static ordering\n");
@@ -141,7 +151,7 @@ int Abc_CommandPoem1( Abc_Frame_t * pAbc, int argc, char ** argv )
     int c;
     ParPoemSetDefaultParams( pPars );
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "Tvh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "TLvh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -155,6 +165,15 @@ int Abc_CommandPoem1( Abc_Frame_t * pAbc, int argc, char ** argv )
             globalUtilOptind++;
             if ( pPars->nTimeOut < 0 )
                 goto usage;
+            break;
+        case 'L':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-L\" should be followed by a filename.\n" );
+                goto usage;
+            }
+            pPars->logFilename = argv[globalUtilOptind];
+            globalUtilOptind++;
             break;
         case 'v':
             pPars->fVerbose ^= 1;
@@ -224,7 +243,7 @@ int Abc_CommandPoem0( Abc_Frame_t * pAbc, int argc, char ** argv )
     int c;
     ParPoemSetDefaultParams( pPars );
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "Tvh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "TLvh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -238,6 +257,15 @@ int Abc_CommandPoem0( Abc_Frame_t * pAbc, int argc, char ** argv )
             globalUtilOptind++;
             if ( pPars->nTimeOut < 0 )
                 goto usage;
+            break;
+        case 'L':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-L\" should be followed by a filename.\n" );
+                goto usage;
+            }
+            pPars->logFilename = argv[globalUtilOptind];
+            globalUtilOptind++;
             break;
         case 'v':
             pPars->fVerbose ^= 1;
@@ -306,7 +334,7 @@ int Abc_CommandPoemr( Abc_Frame_t * pAbc, int argc, char ** argv )
     int c;
     ParPoemSetDefaultParams( pPars );
     Extra_UtilGetoptReset();
-    while ( ( c = Extra_UtilGetopt( argc, argv, "Tvh" ) ) != EOF )
+    while ( ( c = Extra_UtilGetopt( argc, argv, "TLvh" ) ) != EOF )
     {
         switch ( c )
         {
@@ -320,6 +348,15 @@ int Abc_CommandPoemr( Abc_Frame_t * pAbc, int argc, char ** argv )
             globalUtilOptind++;
             if ( pPars->nTimeOut < 0 )
                 goto usage;
+            break;
+        case 'L':
+            if ( globalUtilOptind >= argc )
+            {
+                Abc_Print( -1, "Command line switch \"-L\" should be followed by a filename.\n" );
+                goto usage;
+            }
+            pPars->logFilename = argv[globalUtilOptind];
+            globalUtilOptind++;
             break;
         case 'v':
             pPars->fVerbose ^= 1;

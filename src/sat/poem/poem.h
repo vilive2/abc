@@ -29,6 +29,7 @@ typedef struct {
     int nMemGB;
     int fVerbose;
     int staticOrdering;
+    char *logFilename;
 } PoemPar_t;
 
 typedef struct {

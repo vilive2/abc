@@ -23,7 +23,7 @@ extern Abc_Ntk_t * Abc_NtkSelectPos( Abc_Ntk_t * pNtkInit, Vec_Int_t * vPoIds );
 extern Abc_Ntk_t * Abc_NtkDarLatchSweep( Abc_Ntk_t * pNtk, int fLatchConst, int fLatchEqual, int fSaveNames, int fUseMvSweep, int nFramesSymb, int nFramesSatur, int fVerbose, int fVeryVerbose );
 ABC_NAMESPACE_HEADER_END
 
-extern void print_stat(std::vector<PoemObj_t*> &props);
+extern void print_stat(std::vector<PoemObj_t*> &props, char *logFilename = NULL, char *ntkName = NULL);
 extern void print_log (PoemMan *pMan);
 
 static inline void PrintMem(const char *tag)
@@ -39,6 +39,7 @@ void ParPoemSetDefaultParams ( PoemPar_t *pPars) {
     pPars->nMemGB = 0;
     pPars->fVerbose = 0;
     pPars->staticOrdering = 0;
+    pPars->logFilename = NULL;
 }
 
 void PoemDataInit ( PoemData_t *pData) {
@@ -234,7 +235,7 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         if ( pq.empty() ) break;
     }
 
-    print_stat (props);
+    print_stat (props, pPars->logFilename, Abc_NtkName(orgNtk));
 
     finish:
     for(int i = 0 ; i < N ; i++) {
@@ -371,7 +372,7 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         pMan.clkBudget = std::min(pMan.clkBudget, pMan.clkRem);
     }
 
-    print_stat(props);
+    print_stat (props, pPars->logFilename, Abc_NtkName(orgNtk));
 
     
 
@@ -472,8 +473,7 @@ void PoemMultiPropertyVerificationALG0( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         if (pMan.clkBudget <= 0) break;
     }
 
-    print_stat(props);
-
+    print_stat (props, pPars->logFilename, Abc_NtkName(orgNtk));
     
 
     finish:
@@ -579,8 +579,7 @@ void PoemMultiPropertyVerificationALGR( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         if (pMan.clkBudget <= 0) break;
     }
 
-    print_stat(props);
-
+    print_stat (props, pPars->logFilename, Abc_NtkName(orgNtk));
     
 
     finish:
@@ -679,8 +678,8 @@ void SequentialMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         if (pMan.clkRem <= 0) break;
     }
 
-    print_stat(props);
-
+    print_stat (props, pPars->logFilename, Abc_NtkName(orgNtk));
+    
     finish:
     for(int i = 0 ; i < N ; i++) {
         pNtk = (Abc_Ntk_t *)props[i]->ntk;
