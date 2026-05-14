@@ -26,6 +26,8 @@ ABC_NAMESPACE_HEADER_END
 extern void print_stat(std::vector<PoemObj_t*> &props, char *logFilename = NULL, char *ntkName = NULL);
 extern void print_log (PoemMan *pMan);
 
+int Solve (BmcState *state, Aig_Man_t * pMan, Abc_Ntk_t * pNtk, Saig_ParBmc_t * pPars, int fOrDecomp);
+
 static inline void PrintMem(const char *tag)
 {
     struct rusage r;
@@ -173,13 +175,6 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
             print_log (&pMan);
         }
 
-        if ( Abc_NtkLatchNum(pNtk) == 0 )
-        {
-            best->status = POEM_SOLVED;
-            pMan.solved++;
-            continue;
-        }
-
         
             
         pBmcPars->nStart = best->pData->nFrame;
@@ -193,7 +188,7 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
             
             
         abctime clk = Abc_Clock();
-        int status = Abc_NtkDarBmc3Continue(bmcstate[best->propNum], aigman[best->propNum], pNtk, pBmcPars, fOrDecomp);
+        int status = Solve(bmcstate[best->propNum], aigman[best->propNum], pNtk, pBmcPars, fOrDecomp);
         // PrintMem("After BMC");
         abctime clkRun = Abc_Clock() - clk;
         
@@ -690,6 +685,69 @@ void SequentialMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     free(pMan.pdata);
 
     return ;
+}
+
+
+int SolveCombinationalCkt( Abc_Ntk_t * pNtk)
+{
+    int RetValue;
+    int fVerbose;
+    int nConfLimit;
+    int nInsLimit;
+    abctime clk;
+    // set defaults
+    fVerbose   = 0;
+    nConfLimit = 0;
+    nInsLimit  = 0;
+    
+
+    assert (pNtk != NULL);
+    assert (Abc_NtkLatchNum(pNtk) == 0);
+    assert (Abc_NtkPoNum(pNtk) == 1);
+
+    clk = Abc_Clock();
+    if ( Abc_NtkIsStrash(pNtk) )
+    {
+        RetValue = Abc_NtkMiterSat( pNtk, (ABC_INT64_T)nConfLimit, (ABC_INT64_T)nInsLimit, fVerbose, NULL, NULL );
+    }
+    else
+    {
+        assert( Abc_NtkIsLogic(pNtk) );
+        Abc_NtkToBdd( pNtk );
+        RetValue = Abc_NtkMiterSat( pNtk, (ABC_INT64_T)nConfLimit, (ABC_INT64_T)nInsLimit, fVerbose, NULL, NULL );
+    }
+
+    // verify that the pattern is correct
+    if ( RetValue == 0 )
+    {
+        //int i;
+        //Abc_Obj_t * pObj;
+        int * pSimInfo = Abc_NtkVerifySimulatePattern( pNtk, pNtk->pModel );
+        if ( pSimInfo[0] != 1 )
+            Abc_Print( 1, "ERROR in Abc_NtkMiterSat(): Generated counter example is invalid.\n" );
+        ABC_FREE( pSimInfo );
+        exit (1);
+        /*
+        // print model
+        Abc_NtkForEachPi( pNtk, pObj, i )
+        {
+            Abc_Print( -1, "%d", (int)(pNtk->pModel[i] > 0) );
+            if ( i == 70 )
+                break;
+        }
+        Abc_Print( -1, "\n" );
+        */
+    }
+
+    return RetValue;
+}
+
+int Solve (BmcState *state, Aig_Man_t * pMan, Abc_Ntk_t * pNtk, Saig_ParBmc_t * pPars, int fOrDecomp) {
+    if (Abc_NtkLatchNum (pNtk) == 0) {
+        return SolveCombinationalCkt (pNtk);   
+    }
+
+    return Abc_NtkDarBmc3Continue(state, pMan, pNtk, pPars, fOrDecomp);
 }
 
 /*
