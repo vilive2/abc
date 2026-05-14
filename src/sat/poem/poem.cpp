@@ -127,7 +127,7 @@ void PoemManSeparatePorperties (PoemMan *pMan, Abc_Ntk_t *orgNtk) {
  * @warning This function assumes the input network has at least one property
  *          and will fail if pPars->nTimeOut is not positive
  */
-void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
+void PoemMultiPropertyVerificationALG2( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
     Saig_ParBmc_t Pars, * pBmcPars = &Pars;
     int fOrDecomp = 0;
@@ -450,7 +450,7 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 }
 
 
-void PoemMultiPropertyVerificationALG0( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
+void PoemMultiPropertyVerificationETB( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     Saig_ParBmc_t Pars, * pBmcPars = &Pars;
     int fOrDecomp = 0;
     Saig_ParBmcSetDefaultParams( pBmcPars );
@@ -548,7 +548,7 @@ void PoemMultiPropertyVerificationALG0( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     return ;
 }
 
-void PoemMultiPropertyVerificationALGR( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
+void PoemMultiPropertyVerificationRO( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     Saig_ParBmc_t Pars, * pBmcPars = &Pars;
     int fOrDecomp = 0;
     Saig_ParBmcSetDefaultParams( pBmcPars );
@@ -653,105 +653,6 @@ void PoemMultiPropertyVerificationALGR( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
     return ;
 }
-
-void SequentialMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
-
-    
-    Saig_ParBmc_t Pars, * pBmcPars = &Pars;
-    int fOrDecomp = 0;
-    Saig_ParBmcSetDefaultParams( pBmcPars );
-    PoemData_t pData;
-    pBmcPars->pData = &pData;
-    pBmcPars->fUseGlucose = 1;
-    pBmcPars->fSilent = 1;
-    Abc_Ntk_t *orgNtk;
-    orgNtk = Abc_NtkDup(pNtk);
-    // PrintMem("After Abc_NtkDup");
-
-    int N = Abc_NtkPoNum(orgNtk);
-    PoemMan pMan;
-    PoemManSeparatePorperties (&pMan, orgNtk);
-
-    std::vector<PoemObj_t*> props;
-    for(int i = 0 ; i < N ; i++) {
-        props.push_back(&(pMan.objs[i]));
-    }
-
-    sort(props.begin(), props.end(), CompNtkSize());
-
-    PoemManInit (&pMan, N, pPars->nTimeOut, pPars->nTimeOut * CLOCKS_PER_SEC);
-    
-    for (;pMan.it < N ; pMan.it++) {
-        PoemObj_t* best = props[pMan.it];
-        pNtk = (Abc_Ntk_t *)(best->ntk);
-
-        if (pPars->fVerbose) {
-            pMan.maxClk = 0;
-            pMan.maxFrame = 0;
-            for (int i = 0 ; i < N ; i++) {
-                pMan.maxFrame = std::max(pMan.maxFrame, (int)props[i]->pData->nFrame);
-                pMan.maxClk = std::max(pMan.maxClk, props[i]->pData->nClk);
-            }
-            printf("\rprop: %d ", best->propNum);
-            print_log (&pMan);
-        }
-
-        if ( Abc_NtkLatchNum(pNtk) == 0 )
-        {
-            best->status = POEM_SOLVED;
-            pMan.solved++;
-            continue;
-        }
-
-        pBmcPars->nStart = 0;
-        pBmcPars->pData->propNum = best->propNum; // Just to Debug ,TODO: Remove
-        pBmcPars->nTimeOut = (0LL + pMan.clkRem + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
-        pBmcPars->fSilent = 1;
-        pBmcPars->iFrame = -1;
-        PoemDataInit (pBmcPars->pData);
-            
-            
-        abctime clk = Abc_Clock();
-        int status = Abc_NtkDarBmc3(pNtk, pBmcPars, fOrDecomp);
-        abctime clkRun = Abc_Clock() - clk;
-        
-        best->pData->nFrame += pBmcPars->pData->nFrame;
-        best->pData->nClk += clkRun;
-        pMan.clkRem -= clkRun;
-        
-        if (status == ABC_SAT) {
-            best->status = POEM_SAT;
-            pMan.solved++;
-        } else if (status == ABC_UNSAT) {
-            best->status = POEM_UNSAT;
-            pMan.solved++;
-        } else if (status == ABC_UNDEC) {
-            
-        } else {
-            goto finish;
-        }
-
-        pMan.clkBudget = pMan.clkRem;
-        
-        if (Abc_Clock() > pMan.nTimeToStop )
-            break;
-        if (pMan.clkRem <= 0) break;
-    }
-
-    print_stat (props, pPars->logFilename, Abc_NtkName(orgNtk));
-    
-    finish:
-    for(int i = 0 ; i < N ; i++) {
-        pNtk = (Abc_Ntk_t *)props[i]->ntk;
-        Abc_NtkDelete(pNtk);
-    }
-    Abc_NtkDelete(orgNtk);
-    free(pMan.objs);
-    free(pMan.pdata);
-
-    return ;
-}
-
 
 int SolveCombinationalCkt( Abc_Ntk_t * pNtk)
 {
