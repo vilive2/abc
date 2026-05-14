@@ -55,6 +55,8 @@ void PoemDataInit ( PoemData_t *pData) {
     pData->nConflicts = 0;
     pData->nPropagations = 0;
     pData->nClk = 0;
+    pData->nSolved = 0;
+    pData->lastSolvedAt = Abc_Clock();
 }
 
 void PoemManInit ( PoemMan *pMan, int N, int nTimeOut, abctime clkBudget) {
@@ -246,6 +248,69 @@ void PoemMultiPropertyVerification( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     free(pMan.pdata);
     // Vec_PtrFree(Lp);
 
+    return ;
+}
+
+
+void PoemMultiPropertyVerificationBreadthwise( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
+
+    Saig_ParBmc_t Pars, * pBmcPars = &Pars;
+    int fOrDecomp = 0;
+    Saig_ParBmcSetDefaultParams( pBmcPars );
+    PoemData_t pData;
+    pBmcPars->pData = &pData;
+    pBmcPars->fUseGlucose = 1;
+    pBmcPars->fSilent = 1;
+    pBmcPars->fSolveAll = 1;
+    
+    PoemMan pMan;
+    
+    BmcState *bmcstate;
+    Aig_Man_t *aigman;
+    
+    aigman = Abc_NtkToDar( pNtk, 0, 1 );
+    bmcstate = createBmcState (aigman, pBmcPars);
+    
+
+    assert (pPars->nTimeOut > 0);
+    
+    pBmcPars->nMemLimit = (1LL*pPars->nMemGB*1024*1024*1024);
+    
+        
+            
+    pBmcPars->nStart = 0;
+    pBmcPars->nTimeOut = pPars->nTimeOut;
+    pBmcPars->iFrame = -1;
+    PoemDataInit (pBmcPars->pData);
+    
+    abctime clk = Abc_Clock();
+    int status = Solve(bmcstate, aigman, pNtk, pBmcPars, fOrDecomp);
+
+    if (status != ABC_UNDEC) pBmcPars->pData->nFrame -= 1;
+
+    int N = Abc_NtkPoNum(pNtk);
+    pMan.objs = ABC_ALLOC(PoemObj_t, N);
+    pMan.pdata = ABC_ALLOC(PoemData_t, N);
+
+    std::vector<PoemObj_t*> props;
+    for(int i = 0 ; i < N ; i++) {
+        PoemDataInit (&(pMan.pdata[i]));
+        pMan.pdata[i].nFrame = pBmcPars->pData->nFrame;
+        pMan.objs[i].pData = &(pMan.pdata[i]);
+        if (i < pBmcPars->pData->nSolved) 
+            pMan.objs[i].status = POEM_SOLVED;
+        props.push_back(&(pMan.objs[i]));
+    }
+
+    if (pBmcPars->pData->nSolved) pMan.pdata[0].nClk = pBmcPars->pData->lastSolvedAt - clk;
+    if (N > pBmcPars->pData->nSolved) pMan.pdata[N-1].nClk = 1LL*pPars->nTimeOut * CLOCKS_PER_SEC;
+
+    print_stat (props, pPars->logFilename, Abc_NtkName(pNtk));
+
+    deleteBmcState (bmcstate);
+    Aig_ManStop( aigman );
+    free (pMan.objs);
+    free (pMan.pdata);
     return ;
 }
 

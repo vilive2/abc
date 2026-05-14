@@ -40,6 +40,8 @@ typedef struct {
     unsigned int nClause;
     unsigned int nConflicts;
     unsigned int nPropagations;
+    unsigned int nSolved;
+    abctime lastSolvedAt;
     int propNum;
     abctime nClk;
     double score;

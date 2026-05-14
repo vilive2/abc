@@ -45,7 +45,7 @@ void print_stat(std::vector<PoemObj_t*> &props, char *logFilename = NULL, char *
     }
 
     if (N - S == 0) 
-        avg_frame = INF;
+        avg_frame = 0;
     else
         avg_frame = avg_frame / (N - S);
     

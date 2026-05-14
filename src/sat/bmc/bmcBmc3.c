@@ -2422,6 +2422,11 @@ int Saig_ManBmcScalableContinue( BmcState *state, Aig_Man_t * pAig, Saig_ParBmc_
                 if ( p->pTime4Outs == NULL )
                     goto finish;
             }
+
+            if (status == l_True || status == l_False) {
+                pPars->pData->nSolved++;
+                pPars->pData->lastSolvedAt = Abc_Clock();
+            }
         }
         if ( pPars->fVerbose ) 
         {
