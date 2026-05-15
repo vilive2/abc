@@ -54,7 +54,7 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
     Abc_Ntk_t * pNtk = Abc_FrameReadNtk(pAbc);
     
     if (argc < 2) {
-        fprintf(stderr, "Error: Algorithm name is required!\n");
+        Abc_Print(-1, "Error: Algorithm name is required!\n");
         goto usage;
     }
 
@@ -72,7 +72,7 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
     }
 
     if (!selected_func) {
-        fprintf(stderr, "Error: Invalid algoritm '%s'\n", algorithm_name);
+        Abc_Print(-1, "Error: Invalid algoritm '%s'\n", algorithm_name);
         goto usage;
     }
 
@@ -83,6 +83,7 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
     int c;
     ParPoemSetDefaultParams( pPars );
     Extra_UtilGetoptReset();
+
     while ( ( c = Extra_UtilGetopt( argc, argv, "TMLvh" ) ) != EOF )
     {
         switch ( c )
@@ -95,9 +96,12 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
             }
             pPars->nTimeOut = atoi(argv[globalUtilOptind]);
             globalUtilOptind++;
-            if ( pPars->nTimeOut < 0 )
+            if ( pPars->nTimeOut <= 0 ) {
+                Abc_Print(-1, "Error: Timeout must be positive integer.\n");
                 goto usage;
+            }
             break;
+
         case 'M':
             if ( globalUtilOptind >= argc )
             {
@@ -105,23 +109,31 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
                 goto usage;
             }
             pPars->nMemGB = atoi(argv[globalUtilOptind]);
-            if (pPars->nMemGB < 0) 
+            globalUtilOptind++;
+            if (pPars->nMemGB < 0) {
+                Abc_Print(-1, "Error: Memory must be non-negative.\n");
                 goto usage;
+            }
             break;
+
         case 'L':
             if ( globalUtilOptind >= argc )
             {
                 Abc_Print( -1, "Command line switch \"-L\" should be followed by a filename.\n" );
                 goto usage;
             }
-            pPars->logFilename = argv[globalUtilOptind];
+            strncpy(pPars->logFilenameBuf, argv[globalUtilOptind], sizeof(pPars->logFilenameBuf)-1);
+            pPars->logFilename = pPars->logFilenameBuf;
             globalUtilOptind++;
             break;
+
         case 'v':
             pPars->fVerbose ^= 1;
             break;
+
         case 'h':
             goto usage;
+
         default:
             goto usage;
         }
@@ -151,18 +163,41 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
         Abc_Print( 1, "The miters is already solved; skipping the command.\n" ); 
         return 0;
     }
+
+    if (pPars->nTimeOut <= 0) {
+        Abc_Print(-1, "Error: -T timeout is required and must be positive!\n");
+        goto usage;
+    }
     
+    if (pPars->fVerbose) {
+        Abc_Print(0, "\n========================================\n");
+        Abc_Print(0, "POEM Configuration:\n");
+        Abc_Print(0, "  Algorithm: %s\n", algorithm_name);
+        Abc_Print(0, "  Timeout:   %d seconds\n", pPars->nTimeOut);
+        Abc_Print(0, "  Memory:    %d GB\n", pPars->nMemGB);
+        if (pPars->logFilename)
+            Abc_Print(0, "  Log file:  %s\n", pPars->logFilename);
+        Abc_Print(0, "========================================\n\n");
+    }
+
+
     selected_func(pNtk, pPars);
 
     return 0;
 
 usage:
-    Abc_Print( -2, "Usage: poem <algorithm> [-T timeout] [-M mem_GB] [-L logfile] [-v] [-h]\n" );
-    Abc_Print( -2, "\t<algorithm> : required, must be one of {abc, alg1, alg2, ro, etb}\n" );
-    Abc_Print( -2, "\t-T <num>    : required, runtime limit in seconds\n" );
-    Abc_Print( -2, "\t-M <num>    : memory available in GB [default = %d]\n", pPars->nMemGB );
-    Abc_Print( -2, "\t-L <file>   : log file name [default = %s]\n", pPars->logFilename );
-    Abc_Print( -2, "\t-v          : verbose mode [default = %s]\n", pPars->fVerbose ? "off" : "on" );
-    Abc_Print( -2, "\t-h          : print this help message\n" );
+    Abc_Print(-2, "Usage: poem <algorithm> -T <timeout> [-M <mem_GB>] [-L <logfile>] [-v] [-h]\n");
+    Abc_Print(-2, "\t<algorithm> : required, must be one of: ");
+    for (int i = 0; poem_algorithms[i].name != NULL; i++) {
+        Abc_Print(-2, "%s%s", poem_algorithms[i].name, 
+                 poem_algorithms[i+1].name ? ", " : "\n");
+    }
+    Abc_Print(-2, "\t-T <num>    : required, runtime limit in seconds\n");
+    Abc_Print(-2, "\t-M <num>    : memory available in GB [default = %d]\n", pPars ? pPars->nMemGB : 0);
+    Abc_Print(-2, "\t-L <file>   : log file name [default = %s]\n", 
+               (pPars && pPars->logFilename) ? pPars->logFilename : "");
+    Abc_Print(-2, "\t-v          : verbose mode [default = %s]\n", 
+               (pPars && pPars->fVerbose) ? "on" : "off");
+    Abc_Print(-2, "\t-h          : print this help message\n");
     return 1;
 }

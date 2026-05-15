@@ -2017,7 +2017,8 @@ void resetBmcState (BmcState * state, Aig_Man_t * pAig, Saig_ParBmc_t * pPars, s
     static int reset_cnt = 0;
     if (bmcg_sat_solver_conflictnum (state->p->pSat3) > 1000000) goto reset;
     if (bmcg_sat_solver_learntnum (state->p->pSat3) > 1000000) goto reset;
-    if (mem_limit != 0 && bmcg_sat_solver_mem_used (state->p->pSat3) < mem_limit) return;
+    if (mem_limit != 0 && bmcg_sat_solver_mem_used (state->p->pSat3) > mem_limit) goto reset;
+    return;
 
     reset:
     reset_cnt++;
@@ -2118,6 +2119,8 @@ int Saig_ManBmcScalableContinue( BmcState *state, Aig_Man_t * pAig, Saig_ParBmc_
     
     for ( ; f < pPars->nFramesMax; f++ )
     {
+        if (pPars->nMemLimit && bmcg_sat_solver_mem_used (p->pSat3) > pPars->nMemLimit) goto finish;
+
         // stop BMC after exploring all reachable states
         if ( !pPars->nFramesJump && Aig_ManRegNum(pAig) < 30 && f == (1 << Aig_ManRegNum(pAig)) )
         {
@@ -2462,7 +2465,6 @@ int Saig_ManBmcScalableContinue( BmcState *state, Aig_Man_t * pAig, Saig_ParBmc_
             fflush( stdout );
         }
 
-        if (pPars->nMemLimit && bmcg_sat_solver_mem_used (p->pSat3) > pPars->nMemLimit) goto finish;
 
     }
     // consider the next timeframe

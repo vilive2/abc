@@ -30,6 +30,7 @@ typedef struct {
     int fVerbose;
     int staticOrdering;
     char *logFilename;
+    char logFilenameBuf[100];
 } PoemPar_t;
 
 typedef struct {
