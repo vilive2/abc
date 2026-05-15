@@ -4,6 +4,7 @@
 ABC_NAMESPACE_HEADER_START
 
 extern void Poem_Init(Abc_Frame_t *pAbc);
+extern Abc_Ntk_t * Abc_NtkDarFold( Abc_Ntk_t * pNtk, int fCompl, int fVerbose, int fSeqCleanup );
 
 ABC_NAMESPACE_HEADER_END
 
@@ -153,9 +154,25 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
         Abc_Print( -1, "Does not work for combinational networks.\n" );
         return 0;
     }
+    if ( Abc_NtkConstrNum(pNtk) == Abc_NtkPoNum(pNtk) )
+    {
+        Abc_Print( 0, "The network has no primary outputs (only constraints).\n" );
+        return 0;
+    }
     if ( Abc_NtkConstrNum(pNtk) > 0 )
     {
-        Abc_Print( -1, "Constraints have to be folded (use \"fold\").\n" );
+        Abc_Print( 0, "Constraints foldeding.\n" );
+        int fCompl = 0;
+        int fVerbose = 0;
+        int fSeqCleanup = 1;
+        Abc_Ntk_t * pNtkRes;
+        pNtkRes = Abc_NtkDarFold( pNtk, fCompl, fVerbose, fSeqCleanup );
+        if (pNtkRes == NULL) {
+            Abc_Print(1, "Transformation has failed.\n");
+            return 0;
+        }
+        Abc_FrameReplaceCurrentNetwork(pAbc, pNtkRes);
+        pNtk = Abc_FrameReadNtk(pAbc);
         return 0;
     }
     if ( pAbc->fBatchMode && (pAbc->Status == 0 || pAbc->Status == 1) ) 
