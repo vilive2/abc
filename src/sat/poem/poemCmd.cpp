@@ -186,7 +186,7 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
         goto usage;
     }
     
-    if (pPars->fVerbose) {
+    // if (pPars->fVerbose) {
         Abc_Print(0, "\n========================================\n");
         Abc_Print(0, "POEM Configuration:\n");
         Abc_Print(0, "  Algorithm: %s\n", algorithm_name);
@@ -195,7 +195,7 @@ int Abc_CommandPoem( Abc_Frame_t * pAbc, int argc, char ** argv )
         if (pPars->logFilename)
             Abc_Print(0, "  Log file:  %s\n", pPars->logFilename);
         Abc_Print(0, "========================================\n\n");
-    }
+    // }
 
 
     selected_func(pNtk, pPars);

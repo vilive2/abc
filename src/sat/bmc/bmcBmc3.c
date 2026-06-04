@@ -2015,8 +2015,8 @@ BmcState * createBmcState (Aig_Man_t * pAig, Saig_ParBmc_t * pPars) {
 
 void resetBmcState (BmcState * state, Aig_Man_t * pAig, Saig_ParBmc_t * pPars, size_t mem_limit) {
     static int reset_cnt = 0;
-    if (bmcg_sat_solver_conflictnum (state->p->pSat3) > 1000000) goto reset;
-    if (bmcg_sat_solver_learntnum (state->p->pSat3) > 1000000) goto reset;
+    // if (bmcg_sat_solver_conflictnum (state->p->pSat3) > 1000000) goto reset;
+    // if (bmcg_sat_solver_learntnum (state->p->pSat3) > 1000000) goto reset;
     if (mem_limit != 0 && bmcg_sat_solver_mem_used (state->p->pSat3) > mem_limit) goto reset;
     return;
 
@@ -2484,7 +2484,7 @@ finish:
         Abc_Print( 1, "\n" );
     }
 
-    Abc_Print( 1, "\nprop: %d, Mem: %.2f MB\n",pPars->pData->propNum, 1.0*bmcg_sat_solver_mem_used( p->pSat3 ) / (1024*1024));
+    // Abc_Print( 1, "\nprop: %d, Mem: %.2f MB\n",pPars->pData->propNum, 1.0*bmcg_sat_solver_mem_used( p->pSat3 ) / (1024*1024));
 
     // Saig_Bmc3ManStop( p );
     fflush( stdout );

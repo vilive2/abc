@@ -316,9 +316,6 @@ void PoemMultiPropertyVerificationBreadthwise( Abc_Ntk_t *pNtk, PoemPar_t * pPar
 
 void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
-    int (*comparator)(const void *, const void *);
-    comparator = CompFrame;
-    
     Saig_ParBmc_t Pars, * pBmcPars = &Pars;
     int fOrDecomp = 0;
     Saig_ParBmcSetDefaultParams( pBmcPars );
@@ -334,11 +331,15 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     PoemMan pMan;
     PoemManSeparatePorperties (&pMan, orgNtk);
 
-    Vec_Ptr_t *Lp = Vec_PtrStart(N);
+    std::vector<PoemObj_t*> active;
     std::vector<PoemObj_t*> props;
+    std::vector<BmcState *> bmcstate(N);
+    std::vector<Aig_Man_t *> aigman(N);
     for(int i = 0 ; i < N ; i++) {
-        Vec_PtrWriteEntry(Lp, i, &(pMan.objs[i]));
         props.push_back(&(pMan.objs[i]));
+        active.push_back(&(pMan.objs[i]));
+        aigman[i] = Abc_NtkToDar( (Abc_Ntk_t *)pMan.objs[i].ntk, 0, 1 );
+        bmcstate[i] = createBmcState (aigman[i], pBmcPars);
     }
 
     PoemManInit (&pMan, N, pPars->nTimeOut, CLOCKS_PER_SEC);
@@ -346,7 +347,7 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     for (;;pMan.it++) {
         int solved = 0;
         
-        Vec_Ptr_t *unk_goals = Vec_PtrAlloc( Vec_PtrSize(Lp) );
+        std::vector<PoemObj_t*> tmp;
         
         if (pPars->fVerbose) {
             pMan.minClk = ABC_INFINITY;
@@ -361,24 +362,20 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
             }
             printf("\r");
             print_log (&pMan);
+
+            // printf("order\nprop\t#frame\n");
+            // for (int i = 0 ; i < active.size() ; i++) {
+            //     printf("%d %d\n", active[i]->propNum, active[i]->pData->nFrame);
+            // }
         }
 
-        int idx;
-        PoemObj_t *obj;
-        Vec_PtrForEachEntry( PoemObj_t *, Lp, obj, idx ) {
-
+    
+        for ( PoemObj_t *obj: active) {
             
             pNtk = (Abc_Ntk_t *)(obj->ntk);
-
-            if ( Abc_NtkLatchNum(pNtk) == 0 )
-            {
-                obj->status = POEM_SOLVED;
-                pMan.solved++;
-                continue;
-            }
             
             pBmcPars->nStart = obj->pData->nFrame;
-            // pBmcPars->nStart = 0;
+            pBmcPars->pData->propNum = obj->propNum;
             pBmcPars->nTimeOut = (0LL + pMan.clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
             pBmcPars->fSilent = 1;
             pBmcPars->iFrame = -1;
@@ -386,21 +383,29 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
             
             
             abctime clk = Abc_Clock();
-            int status = Abc_NtkDarBmc3(pNtk, pBmcPars, fOrDecomp);
+            int status = Solve(bmcstate[obj->propNum], aigman[obj->propNum], pNtk, pBmcPars, fOrDecomp);
             abctime clkRun = Abc_Clock() - clk;
 
             if (status == ABC_SAT) {
                 obj->status = POEM_SAT;
                 solved++;
                 pMan.solved++;
+
+                Abc_NtkDelete(pNtk);
+                deleteBmcState(bmcstate[obj->propNum]);
+                Aig_ManStop(aigman[obj->propNum]);
             } else if (status == ABC_UNSAT) {
                 obj->status = POEM_UNSAT;
                 solved++;
                 pMan.solved++;
+
+                Abc_NtkDelete(pNtk);
+                deleteBmcState(bmcstate[obj->propNum]);
+                Aig_ManStop(aigman[obj->propNum]);
             } else if (status == ABC_UNDEC) {
-                Vec_PtrPush( unk_goals, obj);
+                tmp.push_back(obj);
+                resetBmcState (bmcstate[obj->propNum], aigman[obj->propNum], pBmcPars, pBmcPars->nMemLimit);
             } else {
-                Vec_PtrFree(unk_goals);
                 goto finish;
             }
 
@@ -415,16 +420,15 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
             if (pMan.clkBudget <= 0) break;
         }
 
-        Vec_PtrFree(Lp);
-        Lp = unk_goals;
-        
+        active = tmp;
 
-
-        if ( Lp->nSize == 0 ) break;
+        if ( active.size() == 0 ) break;
         if ( Abc_Clock() > pMan.nTimeToStop ) break;
         if (pMan.clkBudget <= 0) break;
     
-        Vec_PtrSort(Lp, comparator);
+        sort(active.begin(), active.end(), [](const PoemObj_t* a, const PoemObj_t* b) {
+            return a->pData->nFrame > b->pData->nFrame;
+        });
         
         if (solved == 0) {
             pMan.clkBudget = pMan.clkBudget * 2;
@@ -435,16 +439,18 @@ void PoemMultiPropertyVerificationALG1( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     print_stat (props, pPars->logFilename, Abc_NtkName(orgNtk));
 
     
-
     finish:
     for(int i = 0 ; i < N ; i++) {
+        if (props[i]->status != POEM_UNDEC) continue;
+
         pNtk = (Abc_Ntk_t *)props[i]->ntk;
         Abc_NtkDelete(pNtk);
+        deleteBmcState (bmcstate[i]);
+        Aig_ManStop( aigman[i] );
     }
     Abc_NtkDelete(orgNtk);
     free(pMan.objs);
     free(pMan.pdata);
-    Vec_PtrFree(Lp);
 
     return ;
 }
@@ -716,9 +722,126 @@ int Solve (BmcState *state, Aig_Man_t * pMan, Abc_Ntk_t * pNtk, Saig_ParBmc_t * 
     return Abc_NtkDarBmc3Continue(state, pMan, pNtk, pPars, fOrDecomp);
 }
 
-/*
-design: 6s306.aig
-propNum: 24
-nStart: 34849
-nTimeOut: 64
-*/
+
+void PoemMultiPropertyVerificationHybrid( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
+    Saig_ParBmc_t Pars, * pBmcPars = &Pars;
+    int fOrDecomp = 0;
+    Saig_ParBmcSetDefaultParams( pBmcPars );
+    PoemData_t pData;
+    pBmcPars->pData = &pData;
+    pBmcPars->fUseGlucose = 1;
+    pBmcPars->fSilent = 1;
+    Abc_Ntk_t *orgNtk;
+    orgNtk = Abc_NtkDup(pNtk);
+    // PrintMem("After Abc_NtkDup");
+
+    int N = Abc_NtkPoNum(orgNtk);
+
+    PoemMan pMan;
+
+    PoemManSeparatePorperties (&pMan, orgNtk);
+
+    std::priority_queue<PoemObj_t*, std::vector<PoemObj_t*>, CompFPS> pq;
+    std::vector<PoemObj_t*> props;
+    std::vector<BmcState *> bmcstate(N);
+    std::vector<Aig_Man_t *> aigman(N);
+    // std::vector<Saig_ParBmc_t *> bmcpar(N);
+    for(int i = 0 ; i < N ; i++) {
+        pMan.objs[i].clkBudget = CLOCKS_PER_SEC;
+        pq.push(&(pMan.objs[i]));
+        props.push_back(&(pMan.objs[i]));
+        aigman[i] = Abc_NtkToDar( (Abc_Ntk_t *)pMan.objs[i].ntk, 0, 1 );
+        bmcstate[i] = createBmcState (aigman[i], pBmcPars);
+    }
+
+    assert (pPars->nTimeOut > 0);
+    PoemManInit (&pMan, N, pPars->nTimeOut, CLOCKS_PER_SEC);
+    
+    for (;;pMan.it++) {
+        PoemObj_t* best = pq.top();
+        pq.pop();
+        pNtk = (Abc_Ntk_t *)(best->ntk);
+        
+        pMan.clkBudget = std::min(best->clkBudget, pMan.clkRem);
+        best->clkBudget *= 2;
+        pMan.memLimit = pBmcPars->nMemLimit = (1LL*pPars->nMemGB*1024*1024*1024) / (N - pMan.solved);
+    
+        if (pPars->fVerbose) {
+            printf("\rprop: %d ", best->propNum);
+
+            print_log (&pMan);
+        }
+
+        
+            
+        pBmcPars->nStart = best->pData->nFrame;
+        pBmcPars->pData->propNum = best->propNum; // Just to Debug ,TODO: Remove
+        // pBmcPars->nStart = 0;
+        pBmcPars->nTimeOut = (0LL + pMan.clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
+        // pBmcPars->nConfLimit = conflictBudget;
+        // pBmcPars->fSilent = 1;
+        pBmcPars->iFrame = -1;
+        PoemDataInit (pBmcPars->pData);
+            
+            
+        abctime clk = Abc_Clock();
+        int status = Solve(bmcstate[best->propNum], aigman[best->propNum], pNtk, pBmcPars, fOrDecomp);
+        // PrintMem("After BMC");
+        abctime clkRun = Abc_Clock() - clk;
+        
+        best->pData->nFrame += pBmcPars->pData->nFrame;
+        best->pData->nClk += clkRun;
+        pMan.clkRem -= clkRun;
+        
+        if (status == ABC_SAT) {
+            best->status = POEM_SAT;
+            // nSat++;
+            pMan.solved++;
+            // Vec_PtrDrop(Lp, 0);
+            Abc_NtkDelete(pNtk);
+            deleteBmcState(bmcstate[best->propNum]);
+            Aig_ManStop(aigman[best->propNum]);
+        } else if (status == ABC_UNSAT) {
+            best->status = POEM_UNSAT;
+            // nUnsat++;
+            pMan.solved++;
+            // Vec_PtrDrop(Lp, 0);
+            Abc_NtkDelete(pNtk);
+            deleteBmcState(bmcstate[best->propNum]);
+            Aig_ManStop(aigman[best->propNum]);
+        } else if (status == ABC_UNDEC) {
+            // Vec_PtrPush( unk_goals, obj);
+            pq.push(best);
+            resetBmcState (bmcstate[best->propNum], aigman[best->propNum], pBmcPars, pBmcPars->nMemLimit);
+        } else {
+            goto finish;
+        }
+
+        pMan.maxClk = std::max(pMan.maxClk, best->pData->nClk);
+        pMan.maxFrame = std::max(pMan.maxFrame, (int)(best->pData->nFrame));
+
+        if ( Abc_Clock() > pMan.nTimeToStop )
+            break;
+        if (pMan.clkBudget <= 0) break;
+
+        if ( pq.empty() ) break;
+    }
+
+    print_stat (props, pPars->logFilename, Abc_NtkName(orgNtk));
+
+    finish:
+    for(int i = 0 ; i < N ; i++) {
+        if (props[i]->status != POEM_UNDEC) continue;
+
+        pNtk = (Abc_Ntk_t *)props[i]->ntk;
+        Abc_NtkDelete(pNtk);
+        deleteBmcState (bmcstate[i]);
+        Aig_ManStop( aigman[i] );
+    }
+    Abc_NtkDelete(orgNtk);
+    free(pMan.objs);
+    free(pMan.pdata);
+    // Vec_PtrFree(Lp);
+
+    return ;
+}
