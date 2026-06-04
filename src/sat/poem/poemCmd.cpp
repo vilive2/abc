@@ -20,6 +20,8 @@ extern void PoemMultiPropertyVerificationALG1( Abc_Ntk_t * pNtk, PoemPar_t * pPa
 extern void PoemMultiPropertyVerificationALG2( Abc_Ntk_t * pNtk, PoemPar_t * pPars );
 extern void PoemMultiPropertyVerificationRO( Abc_Ntk_t * pNtk, PoemPar_t * pPars );
 extern void PoemMultiPropertyVerificationETB( Abc_Ntk_t * pNtk, PoemPar_t * pPars );
+extern void PoemMultiPropertyVerificationHybrid( Abc_Ntk_t * pNtk, PoemPar_t * pPars );
+
 
 typedef struct {
     const char* name;
@@ -33,6 +35,7 @@ static const PoemAlgorithmMap poem_algorithms[] = {
     {"alg2", "algorithm 2",           PoemMultiPropertyVerificationALG2},
     {"ro", "random ordering",           PoemMultiPropertyVerificationRO},
     {"etb", "equal time bound",        PoemMultiPropertyVerificationETB},
+    {"hybrid", "Hybrid algorithm",        PoemMultiPropertyVerificationHybrid},
     {NULL,    NULL,                      NULL}
 };
 

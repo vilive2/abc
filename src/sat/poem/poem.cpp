@@ -12,6 +12,9 @@
 #include <algorithm>
 #include <cstdlib>
 #include <ctime>
+#include <cmath>
+#include <string>
+#include <numeric>
 
 ABC_NAMESPACE_HEADER_START
 
@@ -104,29 +107,6 @@ void PoemManSeparatePorperties (PoemMan *pMan, Abc_Ntk_t *orgNtk) {
     Vec_IntFree(vPoIds);
 }
 
-/**
- * @brief Multi-property verification using priority-based scheduling for POEM
- * 
- * This function performs verification of multiple properties on a sequential circuit
- * using a dynamic priority scheduling approach. It manages verification time across
- * multiple properties, prioritizing those that are likely to be solved quickly.
- * 
- * @param pNtk Input network (sequential circuit) to verify
- * @param pPars POEM parameters (timeout, verbosity settings)
- * 
- * @note This function modifies the internal state of properties and deallocates
- *       duplicated networks. Results are stored in the property objects.
- * 
- * @details The algorithm:
- * 1. Duplicates the original network and separates properties
- * 2. Initializes a priority queue of properties (sorted by estimated solving time)
- * 3. Iteratively selects the highest priority property for BMC verification
- * 4. Updates property status (SAT/UNSAT/UNDEC) and time statistics
- * 5. Recalculates priorities and continues until timeout or all properties solved
- * 
- * @warning This function assumes the input network has at least one property
- *          and will fail if pPars->nTimeOut is not positive
- */
 void PoemMultiPropertyVerificationALG2( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
 
     Saig_ParBmc_t Pars, * pBmcPars = &Pars;
@@ -554,6 +534,43 @@ void PoemMultiPropertyVerificationETB( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     return ;
 }
 
+void TestETB(std::vector<PoemObj_t*> &props) {
+    Saig_ParBmc_t Pars, * pBmcPars = &Pars;
+    int fOrDecomp = 0;
+    Saig_ParBmcSetDefaultParams( pBmcPars );
+    PoemData_t pData;
+    pBmcPars->pData = &pData;
+    pBmcPars->fUseGlucose = 1;
+    pBmcPars->fSilent = 1;
+    
+    for (PoemObj_t *obj : props) {
+
+        Abc_Ntk_t *pNtk = (Abc_Ntk_t *)(obj->ntk);
+
+        if ( Abc_NtkLatchNum(pNtk) == 0 )
+        {
+            obj->status = POEM_SOLVED;
+            continue;
+        }
+        
+        pBmcPars->nStart = 0;
+        pBmcPars->nTimeOut = 1;
+        pBmcPars->fSilent = 1;
+        pBmcPars->iFrame = -1;
+        PoemDataInit (pBmcPars->pData);
+                
+        int status = Abc_NtkDarBmc3(pNtk, pBmcPars, fOrDecomp);
+        
+        if (status == ABC_SAT) {
+            obj->status = POEM_SAT;
+        } else if (status == ABC_UNSAT) {
+            obj->status = POEM_UNSAT;
+        } 
+
+        obj->pData->nFrame += pBmcPars->pData->nFrame;
+    }
+}
+
 void PoemMultiPropertyVerificationRO( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     Saig_ParBmc_t Pars, * pBmcPars = &Pars;
     int fOrDecomp = 0;
@@ -722,6 +739,7 @@ int Solve (BmcState *state, Aig_Man_t * pMan, Abc_Ntk_t * pNtk, Saig_ParBmc_t * 
     return Abc_NtkDarBmc3Continue(state, pMan, pNtk, pPars, fOrDecomp);
 }
 
+std::string decideAlgorithm(const std::vector<double>& progress);
 
 void PoemMultiPropertyVerificationHybrid( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     Saig_ParBmc_t Pars, * pBmcPars = &Pars;
@@ -733,115 +751,155 @@ void PoemMultiPropertyVerificationHybrid( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     pBmcPars->fSilent = 1;
     Abc_Ntk_t *orgNtk;
     orgNtk = Abc_NtkDup(pNtk);
-    // PrintMem("After Abc_NtkDup");
+   
+    std::string algorithm_name;
 
     int N = Abc_NtkPoNum(orgNtk);
 
+    int time_to_decide = 400;
+
     PoemMan pMan;
-
-    PoemManSeparatePorperties (&pMan, orgNtk);
-
-    std::priority_queue<PoemObj_t*, std::vector<PoemObj_t*>, CompFPS> pq;
     std::vector<PoemObj_t*> props;
-    std::vector<BmcState *> bmcstate(N);
-    std::vector<Aig_Man_t *> aigman(N);
-    // std::vector<Saig_ParBmc_t *> bmcpar(N);
-    for(int i = 0 ; i < N ; i++) {
-        pMan.objs[i].clkBudget = CLOCKS_PER_SEC;
-        pq.push(&(pMan.objs[i]));
-        props.push_back(&(pMan.objs[i]));
-        aigman[i] = Abc_NtkToDar( (Abc_Ntk_t *)pMan.objs[i].ntk, 0, 1 );
-        bmcstate[i] = createBmcState (aigman[i], pBmcPars);
-    }
 
-    assert (pPars->nTimeOut > 0);
-    PoemManInit (&pMan, N, pPars->nTimeOut, CLOCKS_PER_SEC);
-    
-    for (;;pMan.it++) {
-        PoemObj_t* best = pq.top();
-        pq.pop();
-        pNtk = (Abc_Ntk_t *)(best->ntk);
-        
-        pMan.clkBudget = std::min(best->clkBudget, pMan.clkRem);
-        best->clkBudget *= 2;
-        pMan.memLimit = pBmcPars->nMemLimit = (1LL*pPars->nMemGB*1024*1024*1024) / (N - pMan.solved);
-    
-        if (pPars->fVerbose) {
-            printf("\rprop: %d ", best->propNum);
+    if (2*N <= time_to_decide) {
+        pPars->nTimeOut -= 2*N;
+        // decide between abc, alg1, alg2, and etb
 
-            print_log (&pMan);
-        }
-
-        
-            
-        pBmcPars->nStart = best->pData->nFrame;
-        pBmcPars->pData->propNum = best->propNum; // Just to Debug ,TODO: Remove
-        // pBmcPars->nStart = 0;
-        pBmcPars->nTimeOut = (0LL + pMan.clkBudget + CLOCKS_PER_SEC - 1) / CLOCKS_PER_SEC;
-        // pBmcPars->nConfLimit = conflictBudget;
-        // pBmcPars->fSilent = 1;
+        // all together
+        pBmcPars->nStart = 0;
+        pBmcPars->nTimeOut = N;
+        pBmcPars->fSilent = 1;
         pBmcPars->iFrame = -1;
+        pBmcPars->fSolveAll = 1;
         PoemDataInit (pBmcPars->pData);
-            
-            
-        abctime clk = Abc_Clock();
-        int status = Solve(bmcstate[best->propNum], aigman[best->propNum], pNtk, pBmcPars, fOrDecomp);
-        // PrintMem("After BMC");
-        abctime clkRun = Abc_Clock() - clk;
-        
-        best->pData->nFrame += pBmcPars->pData->nFrame;
-        best->pData->nClk += clkRun;
-        pMan.clkRem -= clkRun;
-        
-        if (status == ABC_SAT) {
-            best->status = POEM_SAT;
-            // nSat++;
-            pMan.solved++;
-            // Vec_PtrDrop(Lp, 0);
-            Abc_NtkDelete(pNtk);
-            deleteBmcState(bmcstate[best->propNum]);
-            Aig_ManStop(aigman[best->propNum]);
-        } else if (status == ABC_UNSAT) {
-            best->status = POEM_UNSAT;
-            // nUnsat++;
-            pMan.solved++;
-            // Vec_PtrDrop(Lp, 0);
-            Abc_NtkDelete(pNtk);
-            deleteBmcState(bmcstate[best->propNum]);
-            Aig_ManStop(aigman[best->propNum]);
-        } else if (status == ABC_UNDEC) {
-            // Vec_PtrPush( unk_goals, obj);
-            pq.push(best);
-            resetBmcState (bmcstate[best->propNum], aigman[best->propNum], pBmcPars, pBmcPars->nMemLimit);
-        } else {
-            goto finish;
+        Abc_NtkDarBmc3(orgNtk, pBmcPars, fOrDecomp);
+
+        // all separately
+        PoemManSeparatePorperties (&pMan, orgNtk);
+        for(int i = 0 ; i < N ; i++) {
+            props.push_back(&(pMan.objs[i]));
+        }
+        TestETB (props);
+
+
+        // decide ?
+        unsigned int maxFrame = 0;
+        double avgFrame = 0;
+        int nSolved = 0;
+        std::vector<double> progress;
+
+        for (int i = 0 ; i < N ; i++) {
+            maxFrame = std::max(maxFrame, props[i]->pData->nFrame);
+            if (props[i]->status == POEM_UNDEC) {
+                progress.push_back(props[i]->pData->nFrame);
+                avgFrame += progress.back();
+            } else {
+                nSolved++;
+            }
         }
 
-        pMan.maxClk = std::max(pMan.maxClk, best->pData->nClk);
-        pMan.maxFrame = std::max(pMan.maxFrame, (int)(best->pData->nFrame));
+        if (pData.nSolved > nSolved || pData.nFrame > maxFrame || pData.nFrame*(N-nSolved) > avgFrame) {
+            algorithm_name = "abc";
+        } else {
+            algorithm_name = decideAlgorithm (progress);
+        }
 
-        if ( Abc_Clock() > pMan.nTimeToStop )
-            break;
-        if (pMan.clkBudget <= 0) break;
+    } else if (N <= time_to_decide) {
+        pPars->nTimeOut -= N;
+        // decide between alg1, alg2, and etb
+        PoemManSeparatePorperties (&pMan, orgNtk);
+        for(int i = 0 ; i < N ; i++) {
+            props.push_back(&(pMan.objs[i]));
+        }
+        TestETB (props);
 
-        if ( pq.empty() ) break;
+        std::vector<double> progress;
+        for (int i = 0 ; i < N ; i++) {
+            if (props[i]->status == POEM_UNDEC) {
+                progress.push_back(props[i]->pData->nFrame);
+            }
+        }
+        if (progress.size() == 0) {
+            algorithm_name = "etb";
+        } else {
+            algorithm_name = decideAlgorithm (progress);
+        }
+    } else {
+        algorithm_name = "etb";
     }
 
-    print_stat (props, pPars->logFilename, Abc_NtkName(orgNtk));
-
-    finish:
-    for(int i = 0 ; i < N ; i++) {
-        if (props[i]->status != POEM_UNDEC) continue;
-
+    for(int i = 0 ; i < props.size() ; i++) {        
         pNtk = (Abc_Ntk_t *)props[i]->ntk;
         Abc_NtkDelete(pNtk);
-        deleteBmcState (bmcstate[i]);
-        Aig_ManStop( aigman[i] );
     }
-    Abc_NtkDelete(orgNtk);
     free(pMan.objs);
     free(pMan.pdata);
-    // Vec_PtrFree(Lp);
+
+    printf("\nSelected Algorithm: ");
+    if (algorithm_name == "etb") {
+        printf("ETB\n");
+        PoemMultiPropertyVerificationETB (orgNtk, pPars);
+    } else if (algorithm_name == "alg1") {
+        printf("ALG1\n");
+        PoemMultiPropertyVerificationALG1 (orgNtk, pPars);
+    } else if (algorithm_name == "alg2") {
+        printf("ALG2\n");
+        PoemMultiPropertyVerificationALG2 (orgNtk, pPars);
+    } else if (algorithm_name == "abc") {
+        printf("ABC\n");
+        PoemMultiPropertyVerificationBreadthwise (orgNtk, pPars);
+    } else {
+        printf("no algorithm selected!\n");
+        exit(1);
+    }
+
+    // cout<<algorithm_name<<"\n";
+    // selected_func(orgNtk, pPars);
 
     return ;
+}
+
+std::string decideAlgorithm(const std::vector<double>& progress) {
+    if (progress.empty()) return "No Data";
+
+    size_t n = progress.size();
+    
+    // 1. Calculate Mean
+    double sum = std::accumulate(progress.begin(), progress.end(), 0.0);
+    double mean = sum / n;
+
+    // 2. Calculate Standard Deviation
+    double sq_sum = 0;
+    for (double val : progress) {
+        sq_sum += (val - mean) * (val - mean);
+    }
+    double std_dev = std::sqrt(sq_sum / n);
+
+    // 3. Calculate Coefficient of Variation (CV)
+    double cv = (mean != 0) ? (std_dev / mean) : 0;
+
+    // 4. Calculate Top 25% Share (Concentration)
+    std::vector<double> sorted_p = progress;
+    std::sort(sorted_p.begin(), sorted_p.end(), std::greater<double>());
+    
+    int top_count = std::max(1, (int)(n * 0.25));
+    double top_sum = std::accumulate(sorted_p.begin(), sorted_p.begin() + top_count, 0.0);
+    double top_share = top_sum / sum;
+
+    // --- Decision Logic ---
+    
+    // Case 1: Almost identical (CV < 15%)
+    if (cv < 0.15) {
+        return "etb";
+    }
+    
+    // Case 2: Highly skewed (High CV or small group dominates > 50%)
+    else if (cv > 0.60 || top_share > 0.50) {
+        return "alg2";
+    }
+    
+    // Case 3: Middle ground (70-80% are similar)
+    else {
+        return "alg1";
+    }
 }
