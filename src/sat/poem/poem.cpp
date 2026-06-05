@@ -862,8 +862,11 @@ void PoemMultiPropertyVerificationHybrid( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         pNtk = (Abc_Ntk_t *)props[i]->ntk;
         Abc_NtkDelete(pNtk);
     }
-    free(pMan.objs);
-    free(pMan.pdata);
+    
+    if (N <= time_to_decide ) {
+        free(pMan.objs);
+        free(pMan.pdata);
+    }
 
     printf("\nSelected Algorithm: ");
     if (algorithm_name == "etb") {
