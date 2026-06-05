@@ -56,6 +56,7 @@ typedef struct {
     int status;
     int propNum;
     abctime clkBudget;
+    abctime clkTotalAlloc;
 } PoemObj_t;
 
 typedef struct {

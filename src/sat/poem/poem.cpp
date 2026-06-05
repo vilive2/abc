@@ -100,6 +100,7 @@ void PoemManSeparatePorperties (PoemMan *pMan, Abc_Ntk_t *orgNtk) {
         pMan->objs[i].status = POEM_UNDEC;
         pMan->objs[i].propNum = i;
         pMan->objs[i].ntk = (void *)pNtk;
+        pMan->objs[i].clkTotalAlloc = 0;
         PoemDataInit(&(pMan->pdata[i]));
         pMan->objs[i].pData = &(pMan->pdata[i]);
     }
@@ -142,13 +143,42 @@ void PoemMultiPropertyVerificationALG2( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
     assert (pPars->nTimeOut > 0);
     PoemManInit (&pMan, N, pPars->nTimeOut, CLOCKS_PER_SEC);
     
+    int exp = 0;
     for (;;pMan.it++) {
         PoemObj_t* best = pq.top();
         pq.pop();
         pNtk = (Abc_Ntk_t *)(best->ntk);
         
-        pMan.clkBudget = std::min(best->clkBudget, pMan.clkRem);
-        best->clkBudget *= 2;
+        abctime minAlloc = best->clkTotalAlloc;
+        abctime maxAlloc = minAlloc;
+        
+        for (int i = 0 ; i < N ; i++) {
+            if (props[i]->status == POEM_UNDEC) {
+                minAlloc = std::min(minAlloc, props[i]->clkTotalAlloc);
+                maxAlloc = std::max(maxAlloc, props[i]->clkTotalAlloc);
+            }
+        }
+
+        pMan.minClk = minAlloc;
+        pMan.maxClk = maxAlloc;
+
+        if (minAlloc == 0) {
+            pMan.clkBudget = CLOCKS_PER_SEC;
+        } else if (minAlloc == maxAlloc) {
+            exp = std::log2(minAlloc / CLOCKS_PER_SEC) + 1;
+            pMan.clkBudget = (1 << exp) * CLOCKS_PER_SEC;
+        } else if (best->clkTotalAlloc < maxAlloc) {
+            pMan.clkBudget = maxAlloc - best->clkTotalAlloc;
+            exp = 0;            
+        } else {
+            exp++;
+            pMan.clkBudget = (1 << exp) * CLOCKS_PER_SEC;
+        }
+
+    
+        best->clkTotalAlloc += pMan.clkBudget;
+
+        pMan.clkBudget = std::min(pMan.clkBudget, pMan.clkRem);
         pMan.memLimit = pBmcPars->nMemLimit = (1LL*pPars->nMemGB*1024*1024*1024) / (N - pMan.solved);
     
         if (pPars->fVerbose) {
@@ -205,7 +235,7 @@ void PoemMultiPropertyVerificationALG2( Abc_Ntk_t *pNtk, PoemPar_t * pPars) {
         pMan.maxClk = std::max(pMan.maxClk, best->pData->nClk);
         pMan.maxFrame = std::max(pMan.maxFrame, (int)(best->pData->nFrame));
 
-        if ( Abc_Clock() > pMan.nTimeToStop )
+        if ( Abc_Clock() > pMan.nTimeToStop || pMan.clkRem <= 0 )
             break;
         if (pMan.clkBudget <= 0) break;
 
