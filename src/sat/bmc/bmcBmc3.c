@@ -1562,6 +1562,7 @@ int Saig_ManBmcScalable( Aig_Man_t * pAig, Saig_ParBmc_t * pPars )
                     if ( !(p->vCexes && Vec_PtrEntry(p->vCexes, i)) && !(p->pTime4Outs && p->pTime4Outs[i] == 0) ) // not SAT and not timed out
                         Gia_ManToBridgeResult( stdout, 1, NULL, i );
             RetValue = pPars->nFailOuts ? 0 : 1;
+            pPars->pData->nSolved = Saig_ManPoNum(pAig);
             goto finish;
         }
         // stop BMC if all targets are solved
@@ -1839,7 +1840,9 @@ nTimeSat += clkSatRun;
                     pCexDup = Abc_CexDup(pCexNew, Saig_ManRegNum(pAig));
                     pCexDup->iPo = k;
                     Vec_PtrWriteEntry( p->vCexes, k, pCexDup );
+                    pPars->pData->nSolved++;
                 }
+                pPars->pData->nSolved++;
                 Abc_CexFreeP( &pCexNew0 );
                 Abc_CexFree( pCexNew );
             }
@@ -2130,6 +2133,7 @@ int Saig_ManBmcScalableContinue( BmcState *state, Aig_Man_t * pAig, Saig_ParBmc_
                     if ( !(p->vCexes && Vec_PtrEntry(p->vCexes, i)) && !(p->pTime4Outs && p->pTime4Outs[i] == 0) ) // not SAT and not timed out
                         Gia_ManToBridgeResult( stdout, 1, NULL, i );
             RetValue = pPars->nFailOuts ? 0 : 1;
+            pPars->pData->nSolved = Saig_ManPoNum(pAig);
             goto finish;
         }
         // stop BMC if all targets are solved
@@ -2137,7 +2141,6 @@ int Saig_ManBmcScalableContinue( BmcState *state, Aig_Man_t * pAig, Saig_ParBmc_
         {
             Abc_Print( 1, "Stopping BMC because all targets are disproved or timed out.\n" );
             RetValue = pPars->nFailOuts ? 0 : 1;
-            pPars->pData->nSolved = Saig_ManPoNum(pAig);
             goto finish;
         }
         // consider the next timeframe
