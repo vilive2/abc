@@ -2137,6 +2137,7 @@ int Saig_ManBmcScalableContinue( BmcState *state, Aig_Man_t * pAig, Saig_ParBmc_
         {
             Abc_Print( 1, "Stopping BMC because all targets are disproved or timed out.\n" );
             RetValue = pPars->nFailOuts ? 0 : 1;
+            pPars->pData->nSolved = Saig_ManPoNum(pAig);
             goto finish;
         }
         // consider the next timeframe
@@ -2407,7 +2408,13 @@ int Saig_ManBmcScalableContinue( BmcState *state, Aig_Man_t * pAig, Saig_ParBmc_
                     pCexDup = Abc_CexDup(pCexNew, Saig_ManRegNum(pAig));
                     pCexDup->iPo = k;
                     Vec_PtrWriteEntry( p->vCexes, k, pCexDup );
+
+                    pPars->pData->nSolved++;
+                    pPars->pData->lastSolvedAt = Abc_Clock();
                 }
+
+                pPars->pData->nSolved++;
+                pPars->pData->lastSolvedAt = Abc_Clock();
                 Abc_CexFreeP( &pCexNew0 );
                 Abc_CexFree( pCexNew );
             }
@@ -2424,11 +2431,6 @@ int Saig_ManBmcScalableContinue( BmcState *state, Aig_Man_t * pAig, Saig_ParBmc_
                 }
                 if ( p->pTime4Outs == NULL )
                     goto finish;
-            }
-
-            if (status == l_True || status == l_False) {
-                pPars->pData->nSolved++;
-                pPars->pData->lastSolvedAt = Abc_Clock();
             }
         }
         if ( pPars->fVerbose ) 

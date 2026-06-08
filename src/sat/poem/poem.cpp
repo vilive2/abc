@@ -309,6 +309,8 @@ void PoemMultiPropertyVerificationBreadthwise( Abc_Ntk_t *pNtk, PoemPar_t * pPar
         pMan.objs[i].pData = &(pMan.pdata[i]);
         if (i < pBmcPars->pData->nSolved) 
             pMan.objs[i].status = POEM_SOLVED;
+        else 
+            pMan.objs[i].status = POEM_UNDEC;
         props.push_back(&(pMan.objs[i]));
     }
 
